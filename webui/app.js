@@ -498,8 +498,44 @@ function renderMobileChunkSelect() {
 }
 
 function isChunkCompleted(chunk) {
-  const ft = chunk.segment.freeTranslation?.en || '';
-  return ft.trim().length > 0;
+  const segment = chunk.segment;
+
+  // Check if free translation exists
+  const ft = segment.freeTranslation?.en || '';
+  if (ft.trim().length === 0) {
+    return false;
+  }
+
+  // Check if all baseline words have literal translations
+  const baselineWords = segment.baseline || [];
+  const literalWords = (segment.literalTranslation?.en || '').split(' ').filter(w => w.trim());
+  const merges = segment.literalTranslationMerges || [];
+
+  // Count how many words are covered by merges
+  const mergedWordIndices = new Set();
+  merges.forEach(merge => {
+    merge.wordIndices.forEach(idx => mergedWordIndices.add(idx));
+  });
+
+  // Check each baseline word
+  for (let i = 0; i < baselineWords.length; i++) {
+    const isMerged = mergedWordIndices.has(i);
+
+    if (isMerged) {
+      // For merged words, check that the merge has a gloss
+      const merge = merges.find(m => m.wordIndices.includes(i));
+      if (!merge || !merge.gloss || merge.gloss.trim().length === 0) {
+        return false;
+      }
+    } else {
+      // For non-merged words, check literal translation exists
+      if (!literalWords[i] || literalWords[i].trim().length === 0) {
+        return false;
+      }
+    }
+  }
+
+  return true;
 }
 
 function selectChunk(index) {
@@ -580,11 +616,29 @@ function renderMobileWordTranslation() {
   const chunk = chunkData[currentChunkIndex];
   const segment = chunk.segment;
   const words = segment.baseline || [];
+  const baselineText = (segment.baseline || []).join(' ');
   const totalWords = words.length;
 
-  const literalWords = (segment.literalTranslation?.en || '').split(' ').filter(w => w.trim());
-  const currentWord = words[currentWordIndex] || '';
-  const currentTranslation = literalWords[currentWordIndex] || '';
+  // Check if current word is linked with other words
+  const merges = segment.literalTranslationMerges || [];
+  let currentMerge = null;
+  let linkedWords = [words[currentWordIndex]];
+  let linkedTranslation = '';
+  let linkedIndices = [currentWordIndex];
+
+  for (const merge of merges) {
+    if (merge.wordIndices.includes(currentWordIndex)) {
+      currentMerge = merge;
+      linkedIndices = merge.wordIndices;
+      linkedWords = merge.wordIndices.map(idx => words[idx]);
+      linkedTranslation = merge.gloss || '';
+      break;
+    }
+  }
+
+  const isLinked = currentMerge !== null;
+  const lastLinkedIndex = isLinked ? Math.max(...linkedIndices) : currentWordIndex;
+  const canLinkMore = lastLinkedIndex < totalWords - 1;
 
   const freeTranslation = segment.freeTranslation?.en || '';
   const progress = totalWords > 0 ? ((currentWordIndex + 1) / totalWords * 100) : 0;
@@ -604,14 +658,19 @@ function renderMobileWordTranslation() {
 
         <div class="mobile-context">
           <div class="mobile-context-label">${t('free_translation')}</div>
-          <div class="mobile-context-text">${escapeHtml(freeTranslation)}</div>
+          <div class="mobile-context-text">${escapeHtml(baselineText)}</div>
         </div>
 
         <div class="mobile-word-card">
           <div class="mobile-word-display">
             <div class="mobile-word-label">${t('baseline')}</div>
-            <div class="mobile-word-text">${escapeHtml(currentWord)}</div>
-            <div class="mobile-word-counter">${currentWordIndex + 1} of ${totalWords}</div>
+            <div class="mobile-word-text ${isLinked ? 'mobile-word-linked' : ''}">${escapeHtml(linkedWords.join(' + '))}</div>
+            <div class="mobile-word-counter">${currentWordIndex + 1} of ${totalWords}${isLinked ? ` (${linkedWords.length} words linked)` : ''}</div>
+            ${isLinked ? `
+              <button class="mobile-unlink-button" onclick="unlinkMobileWords()">
+                Unlink All ↶
+              </button>
+            ` : ''}
           </div>
 
           <div class="mobile-input-container">
@@ -620,11 +679,17 @@ function renderMobileWordTranslation() {
               type="text"
               id="mobile-word-input"
               class="mobile-word-input"
-              value="${escapeHtml(currentTranslation)}"
+              value="${escapeHtml(linkedTranslation || '')}"
               placeholder="${t('translate_instruction')}..."
               autofocus
             >
           </div>
+
+          ${canLinkMore ? `
+            <button class="mobile-link-button" onclick="linkWithNextWord()">
+              ${isLinked ? 'Link another word' : 'Link with next word'} (${escapeHtml(words[lastLinkedIndex + 1])}) →
+            </button>
+          ` : ''}
         </div>
 
         <div class="mobile-button-group">
@@ -664,17 +729,34 @@ function handleMobileWordTranslationChange(e) {
   const segment = chunk.segment;
   const value = e.target.value;
 
-  const literalWords = (segment.literalTranslation?.en || '').split(' ').filter(w => w.trim());
+  // Check if current word is part of a merge
+  const merges = segment.literalTranslationMerges || [];
+  let mergeForCurrentWord = null;
 
-  while (literalWords.length <= currentWordIndex) {
-    literalWords.push('');
+  for (const merge of merges) {
+    if (merge.wordIndices.includes(currentWordIndex)) {
+      mergeForCurrentWord = merge;
+      break;
+    }
   }
-  literalWords[currentWordIndex] = value;
 
-  if (!segment.literalTranslation) {
-    segment.literalTranslation = {};
+  if (mergeForCurrentWord) {
+    // Update the merge gloss
+    mergeForCurrentWord.gloss = value;
+  } else {
+    // Update individual word translation
+    const literalWords = (segment.literalTranslation?.en || '').split(' ').filter(w => w.trim());
+
+    while (literalWords.length <= currentWordIndex) {
+      literalWords.push('');
+    }
+    literalWords[currentWordIndex] = value;
+
+    if (!segment.literalTranslation) {
+      segment.literalTranslation = {};
+    }
+    segment.literalTranslation.en = literalWords.join(' ');
   }
-  segment.literalTranslation.en = literalWords.join(' ');
 
   debouncedSave();
 }
@@ -765,6 +847,68 @@ function continueToNextChunk() {
   selectChunk(currentChunkIndex + 1 < chunkData.length ? currentChunkIndex + 1 : 0);
 }
 
+// Mobile word linking functions
+function linkWithNextWord() {
+  const chunk = chunkData[currentChunkIndex];
+  const segment = chunk.segment;
+  const words = segment.baseline || [];
+
+  if (currentWordIndex >= words.length - 1) return;
+
+  // Initialize literalTranslationMerges if it doesn't exist
+  if (!segment.literalTranslationMerges) {
+    segment.literalTranslationMerges = [];
+  }
+
+  // Get current translation value from input
+  const input = document.getElementById('mobile-word-input');
+  const glossValue = input ? input.value : '';
+
+  // Check if current word is already part of a merge
+  let existingMerge = null;
+  for (const merge of segment.literalTranslationMerges) {
+    if (merge.wordIndices.includes(currentWordIndex)) {
+      existingMerge = merge;
+      break;
+    }
+  }
+
+  if (existingMerge) {
+    // Extend existing merge to include next word
+    if (!existingMerge.wordIndices.includes(currentWordIndex + 1)) {
+      existingMerge.wordIndices.push(currentWordIndex + 1);
+      existingMerge.wordIndices.sort((a, b) => a - b);
+    }
+  } else {
+    // Create new merge
+    segment.literalTranslationMerges.push({
+      wordIndices: [currentWordIndex, currentWordIndex + 1],
+      gloss: glossValue
+    });
+  }
+
+  debouncedSave();
+  renderMobileState();
+}
+
+function unlinkMobileWords() {
+  const chunk = chunkData[currentChunkIndex];
+  const segment = chunk.segment;
+
+  if (!segment.literalTranslationMerges) return;
+
+  // Find and remove the merge containing current word
+  const mergeIndex = segment.literalTranslationMerges.findIndex(merge =>
+    merge.wordIndices.includes(currentWordIndex)
+  );
+
+  if (mergeIndex >= 0) {
+    segment.literalTranslationMerges.splice(mergeIndex, 1);
+    debouncedSave();
+    renderMobileState();
+  }
+}
+
 // ===== DESKTOP VIEW =====
 // (Include your existing desktop rendering code from app.js here)
 // For brevity, I'll include a simplified version
@@ -773,83 +917,193 @@ function renderDesktopView() {
   const main = document.getElementById('main-content');
   const jsonData = currentProject.json_data;
 
+  // Calculate progress
+  const allSegments = jsonData.paragraphs.flatMap(p => p.segments || []);
+  const completedSegments = allSegments.filter(s =>
+    s.freeTranslation?.en && s.freeTranslation.en.trim() !== ''
+  ).length;
+  const progress = allSegments.length > 0 ? (completedSegments / allSegments.length * 100) : 0;
+
   main.innerHTML = `
     <div class="project-info">
-      <div class="project-title">${escapeHtml(jsonData.textTitle || 'Untitled')}</div>
+      <div class="project-title">${escapeHtml(jsonData.textTitle || 'Translation Project')}</div>
       <div class="project-stats">
-        <span>Segments: ${countSegments(jsonData)}</span>
-        <span>Progress: ${calculateProgress(jsonData)}%</span>
+        <span>Total segments: ${allSegments.length}</span>
+        <span>Completed: ${completedSegments}</span>
       </div>
       <div class="progress-container">
         <div class="progress-bar">
-          <div class="progress-fill" style="width: ${calculateProgress(jsonData)}%"></div>
+          <div class="progress-fill" style="width: ${progress}%"></div>
         </div>
       </div>
+      <div class="sync-controls">
+        <label class="sync-toggle">
+          <input type="checkbox" id="auto-sync-toggle" ${autoSyncEnabled ? 'checked' : ''} onchange="toggleAutoSync()">
+          Auto-sync
+        </label>
+        <button class="button-small" onclick="manualSync()">Sync Now</button>
+        <span class="save-indicator" id="save-indicator"></span>
+      </div>
     </div>
-    <div id="segments-container">
-      ${renderAllSegments(jsonData)}
-    </div>
+    <div id="segments-container"></div>
   `;
 
-  // Attach desktop event listeners
-  attachDesktopListeners();
+  renderDesktopSegments();
 }
 
-function countSegments(jsonData) {
-  return jsonData.paragraphs.reduce((count, p) => count + (p.segments?.length || 0), 0);
+function renderDesktopSegments() {
+  const container = document.getElementById('segments-container');
+  const jsonData = currentProject.json_data;
+
+  let segmentIndex = 0;
+  const segmentsHtml = jsonData.paragraphs.map((paragraph, pIdx) => {
+    const segments = paragraph.segments || [];
+    return segments.map((segment, sIdx) => {
+      const html = renderDesktopSegment(segment, segmentIndex);
+      segmentIndex++;
+      return html;
+    }).join('');
+  }).join('');
+
+  container.innerHTML = segmentsHtml;
+
+  // Attach event listeners
+  attachDesktopInputListeners();
 }
 
-function calculateProgress(jsonData) {
-  const allSegments = jsonData.paragraphs.flatMap(p => p.segments || []);
-  const completed = allSegments.filter(s => s.freeTranslation?.en?.trim()).length;
-  return allSegments.length > 0 ? Math.round((completed / allSegments.length) * 100) : 0;
-}
-
-function renderAllSegments(jsonData) {
-  let html = '';
-  jsonData.paragraphs.forEach((paragraph, pIdx) => {
-    if (paragraph.segments && Array.isArray(paragraph.segments)) {
-      paragraph.segments.forEach((segment, sIdx) => {
-        html += renderDesktopSegment(segment, pIdx, sIdx);
-      });
-    }
-  });
-  return html;
-}
-
-function renderDesktopSegment(segment, pIdx, sIdx) {
-  const baseline = segment.baseline || [];
+function renderDesktopSegment(segment, index) {
+  const words = segment.baseline || [];
   const literalTranslation = segment.literalTranslation?.en || '';
   const freeTranslation = segment.freeTranslation?.en || '';
+  const baselineChanges = segment.baselineChanges || [];
+  const merges = segment.literalTranslationMerges || [];
+
+  // Split literal translation by words (if it exists)
+  const literalWords = literalTranslation ? literalTranslation.split(' ') : [];
+
+  // Track which baseline words have pending changes
+  const changesMap = {};
+  baselineChanges.forEach(change => {
+    changesMap[change.wordIndex] = change.newValue;
+  });
+
+  // Build merge map: wordIndex -> {colspan, mergedIndices, gloss, isHidden}
+  const mergeMap = {};
+  merges.forEach(merge => {
+    const firstIdx = merge.wordIndices[0];
+    mergeMap[firstIdx] = {
+      colspan: merge.wordIndices.length,
+      mergedIndices: merge.wordIndices,
+      gloss: merge.gloss || ''
+    };
+    // Mark other indices as hidden
+    for (let i = 1; i < merge.wordIndices.length; i++) {
+      mergeMap[merge.wordIndices[i]] = { isHidden: true };
+    }
+  });
+
+  // Split words into chunks for multi-row display
+  const wordChunks = [];
+  for (let i = 0; i < words.length; i += WORDS_PER_ROW) {
+    wordChunks.push({
+      startIdx: i,
+      endIdx: Math.min(i + WORDS_PER_ROW, words.length),
+      words: words.slice(i, i + WORDS_PER_ROW)
+    });
+  }
+
+  // Generate rows for each chunk
+  const rowsHtml = wordChunks.map(chunk => {
+    const baselineRow = `
+      <tr>
+        <td>Baseline</td>
+        ${chunk.words.map((w, localIdx) => {
+          const i = chunk.startIdx + localIdx;
+          const hasChange = changesMap[i] !== undefined;
+          const displayValue = hasChange ? changesMap[i] : w;
+          return `
+            <td class="baseline-cell ${hasChange ? 'baseline-changed' : ''}">
+              <input
+                type="text"
+                data-segment="${index}"
+                data-word="${i}"
+                data-field="baseline"
+                data-original="${escapeHtml(w)}"
+                value="${escapeHtml(displayValue)}"
+                class="baseline-input"
+                title="${hasChange ? 'Original: ' + escapeHtml(w) : ''}"
+                onfocus="showResetButton(this)"
+                onblur="hideResetButton(this)"
+              >
+              <button class="reset-button hidden" onclick="resetBaselineWord(${index}, ${i})" onmousedown="event.preventDefault()">↺</button>
+            </td>
+          `;
+        }).join('')}
+      </tr>
+    `;
+
+    const wfwRow = `
+      <tr>
+        <td>WFW</td>
+        ${chunk.words.map((w, localIdx) => {
+          const i = chunk.startIdx + localIdx;
+          const mergeInfo = mergeMap[i];
+
+          // Skip if this cell is merged into a previous cell
+          if (mergeInfo && mergeInfo.isHidden) {
+            return `<td class="wfw-cell merged-cell" data-segment="${index}" data-word="${i}" style="display: none;"></td>`;
+          }
+
+          const colspan = mergeInfo ? mergeInfo.colspan : 1;
+          const mergedIndices = mergeInfo ? mergeInfo.mergedIndices.join(',') : '';
+          const glossValue = mergeInfo ? mergeInfo.gloss : (literalWords[i] || '');
+          const isMerged = colspan > 1;
+
+          return `
+            <td class="wfw-cell" data-segment="${index}" data-word="${i}" ${colspan > 1 ? `colspan="${colspan}"` : ''}>
+              <textarea
+                data-segment="${index}"
+                data-word="${i}"
+                data-field="literal"
+                class="wfw-textarea"
+                placeholder=""
+                ${mergedIndices ? `data-merged-words="${mergedIndices}"` : ''}
+              >${escapeHtml(glossValue)}</textarea>
+              <div class="wfw-buttons">
+                <button
+                  class="merge-button"
+                  onclick="mergeWFWCells(${index}, ${i})"
+                  title="Merge with next cell"
+                  ${i === words.length - 1 ? 'disabled' : ''}
+                >→</button>
+                <button
+                  class="unmerge-button ${isMerged ? '' : 'hidden'}"
+                  onclick="unmergeWFWCells(${index}, ${i})"
+                  title="Unmerge cells"
+                >↶</button>
+              </div>
+            </td>
+          `;
+        }).join('')}
+      </tr>
+    `;
+
+    return baselineRow + wfwRow;
+  }).join('');
 
   return `
-    <div class="segment-container">
+    <div class="segment-container" data-segment-index="${index}">
       <table class="segment-table">
-        <tr>
-          <td>Baseline</td>
-          <td>${baseline.map((word, wIdx) =>
-            `<span class="baseline-word" data-p="${pIdx}" data-s="${sIdx}" data-w="${wIdx}">${escapeHtml(word)}</span>`
-          ).join(' ')}</td>
-        </tr>
-        <tr>
-          <td>WFW</td>
-          <td>
-            <input type="text"
-              class="wfw-input"
-              data-p="${pIdx}"
-              data-s="${sIdx}"
-              value="${escapeHtml(literalTranslation)}"
-              placeholder="Word-for-word translation...">
-          </td>
-        </tr>
+        ${rowsHtml}
         <tr class="free-row">
-          <td>Free</td>
-          <td>
-            <textarea
-              class="free-input"
-              data-p="${pIdx}"
-              data-s="${sIdx}"
-              placeholder="Free translation...">${escapeHtml(freeTranslation)}</textarea>
+          <td colspan="${WORDS_PER_ROW + 1}">
+            <div style="display: grid; grid-template-columns: 100px 1fr;">
+              <div style="padding: 8px; font-weight: 600; background: #f8fafc; border-right: 1px solid #e2e8f0;">Free</div>
+              <textarea
+                data-segment="${index}"
+                data-field="free"
+              >${escapeHtml(freeTranslation)}</textarea>
+            </div>
           </td>
         </tr>
       </table>
@@ -857,34 +1111,260 @@ function renderDesktopSegment(segment, pIdx, sIdx) {
   `;
 }
 
-function attachDesktopListeners() {
-  // WFW inputs
-  document.querySelectorAll('.wfw-input').forEach(input => {
-    input.addEventListener('input', handleDesktopWFWChange);
-  });
+function attachDesktopInputListeners() {
+  const inputs = document.querySelectorAll('input[data-segment], textarea[data-segment]');
 
-  // Free translation inputs
-  document.querySelectorAll('.free-input').forEach(textarea => {
-    textarea.addEventListener('input', handleDesktopFreeChange);
+  inputs.forEach(input => {
+    input.addEventListener('input', (e) => {
+      const segmentIndex = parseInt(e.target.dataset.segment);
+      const field = e.target.dataset.field;
+      const value = e.target.value;
+
+      if (field === 'baseline') {
+        const wordIndex = parseInt(e.target.dataset.word);
+        const originalValue = e.target.dataset.original;
+        handleBaselineChange(segmentIndex, wordIndex, value, originalValue);
+      } else if (field === 'literal') {
+        const wordIndex = parseInt(e.target.dataset.word);
+        handleLiteralTranslationChange(segmentIndex, wordIndex, value);
+      } else if (field === 'free') {
+        handleFreeTranslationChange(segmentIndex, value);
+      }
+    });
   });
 }
 
-function handleDesktopWFWChange(e) {
-  const pIdx = parseInt(e.target.dataset.p);
-  const sIdx = parseInt(e.target.dataset.s);
-  const value = e.target.value;
+function handleBaselineChange(segmentIndex, wordIndex, newValue, originalValue) {
+  const allSegments = currentProject.json_data.paragraphs.flatMap(p => p.segments || []);
+  const segment = allSegments[segmentIndex];
 
-  currentProject.json_data.paragraphs[pIdx].segments[sIdx].literalTranslation = { en: value };
+  if (!segment) return;
+
+  // Initialize baselineChanges if it doesn't exist
+  if (!segment.baselineChanges) segment.baselineChanges = [];
+
+  // Get the input cell to update its styling
+  const inputCell = document.querySelector(`input[data-segment="${segmentIndex}"][data-word="${wordIndex}"][data-field="baseline"]`);
+  const cell = inputCell?.closest('td');
+
+  // Check if value changed back to original
+  if (newValue === originalValue) {
+    // Remove the change entry if exists
+    segment.baselineChanges = segment.baselineChanges.filter(
+      change => change.wordIndex !== wordIndex
+    );
+    // Remove the changed class
+    if (cell) cell.classList.remove('baseline-changed');
+  } else {
+    // Find existing change or create new one
+    const existingChangeIndex = segment.baselineChanges.findIndex(
+      change => change.wordIndex === wordIndex
+    );
+
+    const change = {
+      wordIndex: wordIndex,
+      originalValue: originalValue,
+      newValue: newValue,
+      timestamp: new Date().toISOString()
+    };
+
+    if (existingChangeIndex >= 0) {
+      segment.baselineChanges[existingChangeIndex] = change;
+    } else {
+      segment.baselineChanges.push(change);
+    }
+    // Add the changed class
+    if (cell) cell.classList.add('baseline-changed');
+  }
+
   debouncedSave();
 }
 
-function handleDesktopFreeChange(e) {
-  const pIdx = parseInt(e.target.dataset.p);
-  const sIdx = parseInt(e.target.dataset.s);
-  const value = e.target.value;
+function showResetButton(input) {
+  const cell = input.closest('td');
+  const resetButton = cell.querySelector('.reset-button');
+  if (resetButton) {
+    resetButton.classList.remove('hidden');
+  }
+}
 
-  currentProject.json_data.paragraphs[pIdx].segments[sIdx].freeTranslation = { en: value };
+function hideResetButton(input) {
+  const cell = input.closest('td');
+  const resetButton = cell.querySelector('.reset-button');
+  if (resetButton) {
+    resetButton.classList.add('hidden');
+  }
+}
+
+function resetBaselineWord(segmentIndex, wordIndex) {
+  const input = document.querySelector(`input[data-segment="${segmentIndex}"][data-word="${wordIndex}"][data-field="baseline"]`);
+  const originalValue = input.dataset.original;
+
+  input.value = originalValue;
+  handleBaselineChange(segmentIndex, wordIndex, originalValue, originalValue);
+}
+
+function handleLiteralTranslationChange(segmentIndex, wordIndex, value) {
+  // Update local data
+  const allSegments = currentProject.json_data.paragraphs.flatMap(p => p.segments);
+  const segment = allSegments[segmentIndex];
+
+  if (!segment) return;
+
+  // Check if this textarea is part of a merge
+  const textarea = document.querySelector(`textarea[data-segment="${segmentIndex}"][data-word="${wordIndex}"]`);
+  const mergedWords = textarea?.dataset.mergedWords;
+
+  if (mergedWords) {
+    // Update the merge gloss in literalTranslationMerges
+    const wordIndices = mergedWords.split(',').map(Number);
+    saveMergeToData(segmentIndex, wordIndices, value);
+  }
+
+  // Get all word textareas for this segment (not hidden ones)
+  const wordTextareas = document.querySelectorAll(`textarea[data-segment="${segmentIndex}"][data-field="literal"]`);
+  const literalWords = [];
+
+  wordTextareas.forEach(ta => {
+    const cell = ta.closest('td');
+    if (cell && cell.style.display !== 'none') {
+      literalWords.push(ta.value);
+    }
+  });
+
+  // Update segment data
+  if (!segment.literalTranslation) segment.literalTranslation = {};
+  segment.literalTranslation.en = literalWords.join(' ');
+
   debouncedSave();
+}
+
+function handleFreeTranslationChange(segmentIndex, value) {
+  // Update local data
+  const allSegments = currentProject.json_data.paragraphs.flatMap(p => p.segments);
+  const segment = allSegments[segmentIndex];
+
+  if (!segment) return;
+
+  if (!segment.freeTranslation) segment.freeTranslation = {};
+  segment.freeTranslation.en = value;
+
+  debouncedSave();
+}
+
+// WFW Cell Merging Functions
+function mergeWFWCells(segmentIndex, wordIndex) {
+  const cell = document.querySelector(`td.wfw-cell[data-segment="${segmentIndex}"][data-word="${wordIndex}"]`);
+  const nextCell = document.querySelector(`td.wfw-cell[data-segment="${segmentIndex}"][data-word="${wordIndex + 1}"]`);
+
+  if (!cell || !nextCell) return;
+
+  // Get current merged words
+  const textarea = cell.querySelector('textarea');
+  const currentWords = textarea.dataset.mergedWords
+    ? textarea.dataset.mergedWords.split(',').map(Number)
+    : [wordIndex];
+
+  // Add next word to merge
+  const nextWordIndex = wordIndex + 1;
+  currentWords.push(nextWordIndex);
+
+  // Update colspan
+  const currentColspan = parseInt(cell.getAttribute('colspan') || '1');
+  cell.setAttribute('colspan', currentColspan + 1);
+
+  // Hide next cell
+  nextCell.style.display = 'none';
+  nextCell.classList.add('merged-cell');
+
+  // Update textarea merged words tracking
+  textarea.dataset.mergedWords = currentWords.join(',');
+
+  // Show unmerge button, keep merge button visible
+  const unmergeButton = cell.querySelector('.unmerge-button');
+  if (unmergeButton) {
+    unmergeButton.classList.remove('hidden');
+  }
+
+  // Save merge to data
+  saveMergeToData(segmentIndex, currentWords, textarea.value);
+}
+
+function unmergeWFWCells(segmentIndex, wordIndex) {
+  const cell = document.querySelector(`td.wfw-cell[data-segment="${segmentIndex}"][data-word="${wordIndex}"]`);
+  const textarea = cell.querySelector('textarea');
+  const mergedWords = textarea.dataset.mergedWords?.split(',').map(Number) || [wordIndex];
+
+  // Find all merged cells and unhide them
+  mergedWords.forEach((idx, i) => {
+    if (i > 0) {
+      const mergedCell = document.querySelector(`td.wfw-cell[data-segment="${segmentIndex}"][data-word="${idx}"]`);
+      if (mergedCell) {
+        mergedCell.style.display = '';
+        mergedCell.classList.remove('merged-cell');
+      }
+    }
+  });
+
+  // Reset main cell
+  cell.setAttribute('colspan', '1');
+  delete textarea.dataset.mergedWords;
+
+  // Hide unmerge button
+  const unmergeButton = cell.querySelector('.unmerge-button');
+  if (unmergeButton) {
+    unmergeButton.classList.add('hidden');
+  }
+
+  // Remove merge from data
+  removeMergeFromData(segmentIndex, mergedWords);
+}
+
+function saveMergeToData(segmentIndex, wordIndices, gloss) {
+  const allSegments = currentProject.json_data.paragraphs.flatMap(p => p.segments || []);
+  const segment = allSegments[segmentIndex];
+
+  if (!segment) return;
+
+  // Initialize literalTranslationMerges if it doesn't exist
+  if (!segment.literalTranslationMerges) segment.literalTranslationMerges = [];
+
+  // Remove any existing merge that includes these words
+  segment.literalTranslationMerges = segment.literalTranslationMerges.filter(merge => {
+    return !merge.wordIndices.some(idx => wordIndices.includes(idx));
+  });
+
+  // Add new merge if more than one word
+  if (wordIndices.length > 1) {
+    segment.literalTranslationMerges.push({
+      wordIndices: wordIndices,
+      gloss: gloss || ''
+    });
+  }
+
+  debouncedSave();
+}
+
+function removeMergeFromData(segmentIndex, wordIndices) {
+  const allSegments = currentProject.json_data.paragraphs.flatMap(p => p.segments || []);
+  const segment = allSegments[segmentIndex];
+
+  if (!segment || !segment.literalTranslationMerges) return;
+
+  // Remove merge that matches these words
+  segment.literalTranslationMerges = segment.literalTranslationMerges.filter(merge => {
+    return !arraysEqual(merge.wordIndices, wordIndices);
+  });
+
+  debouncedSave();
+}
+
+function arraysEqual(a, b) {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
 }
 
 // ===== SAVE & SYNC =====
@@ -920,31 +1400,27 @@ async function saveProject() {
 }
 
 function showSaveIndicator(status) {
-  let indicator = document.getElementById('save-indicator');
+  const indicator = document.getElementById('save-indicator');
+  if (!indicator) return;
 
-  if (!indicator) {
-    indicator = document.createElement('div');
-    indicator.id = 'save-indicator';
-    indicator.className = 'save-indicator';
-    document.body.appendChild(indicator);
-  }
+  clearTimeout(saveIndicatorTimeout);
 
   indicator.className = `save-indicator ${status}`;
 
-  const messages = {
-    unsaved: t('unsaved', 'Unsaved'),
-    syncing: t('saving', 'Saving...'),
-    saved: t('saved', 'Saved'),
-    error: t('error', 'Error')
-  };
-
-  indicator.textContent = messages[status] || status;
-  indicator.style.display = 'inline-block';
-
-  if (status === 'saved' || status === 'error') {
-    setTimeout(() => {
-      indicator.style.display = 'none';
+  if (status === 'unsaved') {
+    indicator.textContent = 'Saved locally';
+  } else if (status === 'syncing') {
+    indicator.textContent = 'Syncing...';
+  } else if (status === 'saved') {
+    indicator.textContent = 'Synced';
+    saveIndicatorTimeout = setTimeout(() => {
+      indicator.textContent = '';
+      indicator.className = 'save-indicator';
     }, 2000);
+  } else if (status === 'offline') {
+    indicator.textContent = 'Saved locally (will sync when online)';
+  } else if (status === 'error') {
+    indicator.textContent = 'Error saving';
   }
 }
 
@@ -1015,6 +1491,41 @@ window.backToFreeTranslation = backToFreeTranslation;
 window.nextWord = nextWord;
 window.previousWord = previousWord;
 window.continueToNextChunk = continueToNextChunk;
+window.linkWithNextWord = linkWithNextWord;
+window.unlinkMobileWords = unlinkMobileWords;
+window.mergeWFWCells = mergeWFWCells;
+window.unmergeWFWCells = unmergeWFWCells;
+window.showResetButton = showResetButton;
+window.hideResetButton = hideResetButton;
+window.resetBaselineWord = resetBaselineWord;
+window.toggleAutoSync = toggleAutoSync;
+window.manualSync = manualSync;
+
+// ===== SYNC FUNCTIONS =====
+
+function toggleAutoSync() {
+  const toggle = document.getElementById('auto-sync-toggle');
+  if (!toggle) return;
+
+  autoSyncEnabled = toggle.checked;
+
+  if (autoSyncEnabled) {
+    startBackgroundSync();
+    showSaveIndicator('syncing');
+    saveProject();
+  } else {
+    if (syncInterval) {
+      clearInterval(syncInterval);
+      syncInterval = null;
+    }
+    showSaveIndicator('unsaved');
+  }
+}
+
+async function manualSync() {
+  showSaveIndicator('syncing');
+  await saveProject();
+}
 
 // ===== START APP =====
 

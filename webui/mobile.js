@@ -181,10 +181,46 @@ function renderChunkSelect() {
   `;
 }
 
-// Check if chunk is completed (has free translation)
+// Check if chunk is completed (has free translation AND all word-for-word translations)
 function isChunkCompleted(chunk) {
-  const ft = chunk.segment.freeTranslation?.en || '';
-  return ft.trim().length > 0;
+  const segment = chunk.segment;
+
+  // Check if free translation exists
+  const ft = segment.freeTranslation?.en || '';
+  if (ft.trim().length === 0) {
+    return false;
+  }
+
+  // Check if all baseline words have literal translations
+  const baselineWords = segment.baseline || [];
+  const literalWords = (segment.literalTranslation?.en || '').split(' ').filter(w => w.trim());
+  const merges = segment.literalTranslationMerges || [];
+
+  // Count how many words are covered by merges
+  const mergedWordIndices = new Set();
+  merges.forEach(merge => {
+    merge.wordIndices.forEach(idx => mergedWordIndices.add(idx));
+  });
+
+  // Check each baseline word
+  for (let i = 0; i < baselineWords.length; i++) {
+    const isMerged = mergedWordIndices.has(i);
+
+    if (isMerged) {
+      // For merged words, check that the merge has a gloss
+      const merge = merges.find(m => m.wordIndices.includes(i));
+      if (!merge || !merge.gloss || merge.gloss.trim().length === 0) {
+        return false;
+      }
+    } else {
+      // For non-merged words, check literal translation exists
+      if (!literalWords[i] || literalWords[i].trim().length === 0) {
+        return false;
+      }
+    }
+  }
+
+  return true;
 }
 
 // Select a chunk to work on
