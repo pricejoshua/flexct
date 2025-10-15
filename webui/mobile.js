@@ -149,13 +149,18 @@ function renderLoading() {
 // Render chunk selection screen
 function renderChunkSelect() {
   const totalChunks = chunkData.length;
+  const completedChunks = chunkData.filter(c => isChunkCompleted(c)).length;
+  const progress = totalChunks > 0 ? (completedChunks / totalChunks * 100) : 0;
 
   return `
     <div class="screen active">
       <div class="card">
         <div class="card-header">
           <h2 class="card-title">${currentProject.json_data.textTitle || t('choose_text')}</h2>
-          <p class="card-subtitle">${t('total_chunks')}: ${totalChunks}</p>
+          <div class="progress-bar">
+            <div class="progress-fill" style="width: ${progress}%"></div>
+          </div>
+          <p class="card-subtitle">${completedChunks} / ${totalChunks} ${t('completed')}</p>
         </div>
 
         <div class="chunk-list">
@@ -724,6 +729,12 @@ window.nextWord = nextWord;
 window.previousWord = previousWord;
 window.continueToNextChunk = continueToNextChunk;
 window.inspectChunk = inspectChunk;
+
+// Listen for language changes
+window.addEventListener('languageChanged', () => {
+  // Re-render the current state to update UI labels
+  render();
+});
 
 // Initialize on load
 init();

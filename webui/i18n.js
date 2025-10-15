@@ -48,6 +48,10 @@ const translations = {
     yes: 'Yes',
     no: 'No',
 
+    // Language Selector
+    language: 'Language',
+    select_language: 'Select Language',
+
     // Translation interface
     baseline: 'Baseline',
     wfw: 'WFW',
@@ -75,10 +79,77 @@ const translations = {
     chunk_of: 'Chunk {current} of {total}',
   },
 
-  // Placeholder for other languages - can be added later
-  // es: { ... },
-  // fr: { ... },
-  // az: { ... }, // Azerbaijani
+  azj: {
+    // Common UI elements
+    app_title: 'FLEX Sətirlərarası Tərcümə',
+    loading: 'Yüklənir...',
+    error: 'Xəta',
+    ok: 'Tamam',
+    cancel: 'Ləğv et',
+    save: 'Saxla',
+    next: 'Növbəti',
+    back: 'Geri',
+    finish: 'Bitir',
+
+    // Auth & Navigation
+    sign_in: 'Daxil ol',
+    sign_out: 'Çıxış',
+    sign_up: 'Qeydiyyat',
+    email: 'E-poçt',
+    password: 'Şifrə',
+
+    // Desktop view (existing interface)
+    desktop_view: 'Masaüstü görünüş',
+    mobile_view: 'Mobil görünüş',
+    switch_to_mobile: 'Mobil görünüşə keç',
+    switch_to_desktop: 'Masaüstü görünüşə keç',
+
+    // Mobile flow labels
+    choose_text: 'Mətn seç',
+    chunk: 'Hissə',
+    free_translation: 'Sərbəst tərcümə',
+    word_for_word: 'Sözbəsöz',
+    analysis_language: 'Təhlil dili',
+
+    // Progress & Reports
+    reports: 'Hesabatlar',
+    finished: 'Bitdi',
+    progress: 'Gedişat',
+    completed: 'Tamamlandı',
+    continue_question: 'Başqa bir hissə üzərində işləmək istəyirsiniz?',
+    yes: 'Bəli',
+    no: 'Xeyr',
+
+    // Language Selector
+    language: 'Dil',
+    select_language: 'Dil seçin',
+
+    // Translation interface
+    baseline: 'Əsas',
+    wfw: 'SBS',
+    free: 'Sərbəst',
+    word: 'Söz',
+
+    // Status messages
+    saving: 'Saxlanılır...',
+    saved: 'Saxlanıldı',
+    syncing: 'Sinxronlaşdırılır...',
+    synced: 'Sinxronlaşdırıldı',
+    offline: 'Oflayn',
+    saved_locally: 'Lokal olaraq saxlanıldı',
+    will_sync: 'Onlayn olanda sinxronlaşdırılacaq',
+
+    // Instructions
+    upload_instruction: 'Başlamaq üçün JSON faylı yükləyin',
+    select_chunk: 'Tərcümə etmək üçün hissə seçin',
+    translate_instruction: 'Aşağıdakı hər bir sözü tərcümə edin',
+
+    // Counts & Stats
+    total_segments: 'Ümumi seqmentlər',
+    total_chunks: 'Ümumi hissələr',
+    words_remaining: 'qalan sözlər',
+    chunk_of: 'Hissə {current} / {total}',
+  },
 };
 
 // Get translated string by key
@@ -99,6 +170,9 @@ function setLanguage(lang) {
   if (translations[lang]) {
     currentLanguage = lang;
     localStorage.setItem('flex_language', lang);
+
+    // Trigger custom event so UI can update
+    window.dispatchEvent(new CustomEvent('languageChanged', { detail: { language: lang } }));
     return true;
   }
   return false;
@@ -112,6 +186,41 @@ function getLanguage() {
 // Get all available languages
 function getAvailableLanguages() {
   return Object.keys(translations);
+}
+
+// Get language display names
+function getLanguageName(langCode) {
+  const names = {
+    'en': 'English',
+    'azj': 'Azərbaycanca'
+  };
+  return names[langCode] || langCode;
+}
+
+// Create language selector HTML
+function createLanguageSelector() {
+  const languages = getAvailableLanguages();
+  const currentLang = getLanguage();
+
+  return `
+    <div class="language-selector">
+      <label for="language-select" title="${t('select_language')}">
+        <span class="language-label">🌐</span>
+      </label>
+      <select id="language-select" onchange="handleLanguageChange(this.value)">
+        ${languages.map(lang => `
+          <option value="${lang}" ${lang === currentLang ? 'selected' : ''}>
+            ${getLanguageName(lang)}
+          </option>
+        `).join('')}
+      </select>
+    </div>
+  `;
+}
+
+// Handle language change
+function handleLanguageChange(lang) {
+  setLanguage(lang);
 }
 
 // Initialize language from localStorage or browser
@@ -159,5 +268,8 @@ window.t = t;
 window.setLanguage = setLanguage;
 window.getLanguage = getLanguage;
 window.getAvailableLanguages = getAvailableLanguages;
+window.getLanguageName = getLanguageName;
+window.createLanguageSelector = createLanguageSelector;
+window.handleLanguageChange = handleLanguageChange;
 window.exportTranslations = exportTranslations;
 window.importTranslations = importTranslations;
