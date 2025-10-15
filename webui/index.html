@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FLEX Interlinear Translation</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>FLEX Interlinear Translation</h1>
+      <div style="display: flex; align-items: center; gap: 15px;">
+        <a href="mobile.html" id="mobile-view-link" class="view-toggle-link" style="display: none;">Mobile View</a>
+        <div id="auth-status"></div>
+      </div>
+    </header>
+
+    <main id="main-content">
+      <!-- Content will be dynamically loaded here -->
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <script>
+    // Auto-detect mobile and show appropriate view switcher
+    function initViewSwitcher() {
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      const isSmallScreen = window.innerWidth < 768;
+      const mobileLink = document.getElementById('mobile-view-link');
+
+      // Show mobile view link on translation pages (not dashboard/auth)
+      const hash = window.location.hash;
+      const search = window.location.search;
+      const isTranslationPage = hash.includes('#p/');
+
+      if (isTranslationPage && mobileLink) {
+        mobileLink.style.display = 'block';
+
+        // Preserve share code and query params in mobile link
+        const shareCodeMatch = hash.match(/#p\/([A-Z0-9]+)/i);
+        if (shareCodeMatch) {
+          mobileLink.href = 'mobile.html' + search + '#p/' + shareCodeMatch[1];
+        }
+
+        // Auto-redirect to mobile on small screens (optional - can be enabled)
+        // if (isMobile || isSmallScreen) {
+        //   window.location.href = mobileLink.href;
+        // }
+      }
+    }
+
+    // Run on load and hash change
+    window.addEventListener('load', initViewSwitcher);
+    window.addEventListener('hashchange', initViewSwitcher);
+  </script>
+  <script src="app.js"></script>
+</body>
+</html>

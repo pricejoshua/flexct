@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>FLEX Translation - Mobile</title>
+  <link rel="stylesheet" href="mobile.css">
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1 id="header-title">FLEX Translation</h1>
+      <div class="header-actions">
+        <a href="index.html" class="view-toggle" id="desktop-link">Desktop View</a>
+      </div>
+    </header>
+
+    <main id="main-content">
+      <!-- Content will be dynamically loaded here based on flow state -->
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <script src="i18n.js"></script>
+  <script>
+    // Update desktop link to preserve share code
+    function updateDesktopLink() {
+      const hash = window.location.hash;
+      const search = window.location.search;
+      const desktopLink = document.getElementById('desktop-link');
+
+      if (desktopLink && hash) {
+        desktopLink.href = 'index.html' + search + hash;
+      }
+    }
+
+    window.addEventListener('load', updateDesktopLink);
+    window.addEventListener('hashchange', updateDesktopLink);
+  </script>
+  <script src="mobile.js"></script>
+</body>
+</html>
