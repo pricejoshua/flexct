@@ -149,7 +149,7 @@ function updateAuthStatus() {
     authStatus.innerHTML = `
       <div style="display: flex; align-items: center; gap: 10px;">
         <span>${currentUser.email}</span>
-        <button onclick="signOut()" class="button-secondary button-small">Sign Out</button>
+        <button onclick="signOut()" class="button-secondary button-small">${t('sign_out')}</button>
       </div>
     `;
   } else {
@@ -167,15 +167,15 @@ function loadAuthPage() {
   const main = document.getElementById('main-content');
   main.innerHTML = `
     <div class="auth-container">
-      <h2 class="mb-20">Linguist Sign In</h2>
+      <h2 class="mb-20">${t('linguist_sign_in')}</h2>
       <div id="auth-message"></div>
       <form class="auth-form" onsubmit="handleAuth(event)">
-        <input type="email" id="email" placeholder="Email" required>
-        <input type="password" id="password" placeholder="Password" required>
-        <button type="submit">Sign In / Sign Up</button>
+        <input type="email" id="email" placeholder="${t('email')}" required>
+        <input type="password" id="password" placeholder="${t('password')}" required>
+        <button type="submit">${t('sign_in')} / ${t('sign_up')}</button>
       </form>
       <p class="text-center" style="margin-top: 20px; font-size: 14px; color: #64748b;">
-        Community members: Use the link provided by your linguist
+        ${t('community_link_note')}
       </p>
     </div>
   `;
@@ -194,7 +194,7 @@ async function handleAuth(event) {
       if (error.message.includes('Invalid login credentials')) {
         const { error: signUpError } = await supabase.auth.signUp({ email, password });
         if (signUpError) throw signUpError;
-        messageDiv.innerHTML = '<div class="success-message">Account created! Please check your email for verification.</div>';
+        messageDiv.innerHTML = `<div class="success-message">${t('account_created')}</div>`;
       } else {
         throw error;
       }
@@ -211,15 +211,15 @@ async function loadDashboard() {
   const main = document.getElementById('main-content');
   main.innerHTML = `
     <div class="dashboard">
-      <h2>My Projects</h2>
+      <h2>${t('my_projects')}</h2>
       <div class="upload-section">
-        <h3>Upload New Project</h3>
+        <h3>${t('upload_new_project')}</h3>
         <input type="file" id="json-file" accept=".json">
-        <button onclick="uploadProject()" style="margin-top: 10px;">Upload</button>
+        <button onclick="uploadProject()" style="margin-top: 10px;">${t('upload')}</button>
         <div id="upload-message"></div>
       </div>
       <div id="projects-list" class="projects-list">
-        <p>Loading projects...</p>
+        <p>${t('loading_projects')}</p>
       </div>
     </div>
   `;
@@ -240,24 +240,24 @@ async function loadProjects() {
     if (error) throw error;
 
     if (projects.length === 0) {
-      listDiv.innerHTML = '<p>No projects yet. Upload a JSON file to get started.</p>';
+      listDiv.innerHTML = `<p>${t('no_projects_yet')}</p>`;
       return;
     }
 
     listDiv.innerHTML = projects.map(project => `
       <div class="project-item">
         <h3>${escapeHtml(project.title)}</h3>
-        <p>Share Code: <strong>${project.share_code}</strong></p>
-        <p>Created: ${new Date(project.created_at).toLocaleDateString()}</p>
+        <p>${t('share_code')}: <strong>${project.share_code}</strong></p>
+        <p>${t('created')}: ${new Date(project.created_at).toLocaleDateString()}</p>
         <div class="project-actions">
-          <button onclick="copyShareLink('${project.share_code}')">Copy Share Link</button>
-          <button onclick="downloadProject('${project.id}')">Download JSON</button>
-          <button onclick="deleteProject('${project.id}')" class="button-secondary">Delete</button>
+          <button onclick="copyShareLink('${project.share_code}')">${t('copy_share_link')}</button>
+          <button onclick="downloadProject('${project.id}')">${t('download_json')}</button>
+          <button onclick="deleteProject('${project.id}')" class="button-secondary">${t('delete')}</button>
         </div>
       </div>
     `).join('');
   } catch (error) {
-    listDiv.innerHTML = `<div class="error-message">Error loading projects: ${error.message}</div>`;
+    listDiv.innerHTML = `<div class="error-message">${t('error_loading_projects', {error: error.message})}</div>`;
   }
 }
 
@@ -266,7 +266,7 @@ async function uploadProject() {
   const messageDiv = document.getElementById('upload-message');
 
   if (!fileInput.files[0]) {
-    messageDiv.innerHTML = '<div class="error-message">Please select a file</div>';
+    messageDiv.innerHTML = `<div class="error-message">${t('please_select_file')}</div>`;
     return;
   }
 
@@ -294,11 +294,11 @@ async function uploadProject() {
 
     if (error) throw error;
 
-    messageDiv.innerHTML = `<div class="success-message">Project uploaded! Share code: <strong>${shareCode}</strong></div>`;
+    messageDiv.innerHTML = `<div class="success-message">${t('project_uploaded', {shareCode})}</div>`;
     fileInput.value = '';
     await loadProjects();
   } catch (error) {
-    messageDiv.innerHTML = `<div class="error-message">Upload failed: ${error.message}</div>`;
+    messageDiv.innerHTML = `<div class="error-message">${t('upload_failed', {error: error.message})}</div>`;
   }
 }
 
@@ -314,7 +314,7 @@ function generateShareCode() {
 function copyShareLink(shareCode) {
   const url = `${window.location.origin}${window.location.pathname}#p/${shareCode}`;
   navigator.clipboard.writeText(url);
-  alert('Share link copied to clipboard!');
+  alert(t('share_link_copied'));
 }
 
 async function downloadProject(projectId) {
@@ -335,12 +335,12 @@ async function downloadProject(projectId) {
     a.click();
     URL.revokeObjectURL(url);
   } catch (error) {
-    alert('Download failed: ' + error.message);
+    alert(t('download_failed', {error: error.message}));
   }
 }
 
 async function deleteProject(projectId) {
-  if (!confirm('Are you sure you want to delete this project?')) return;
+  if (!confirm(t('confirm_delete'))) return;
 
   try {
     const { error } = await supabase
@@ -351,11 +351,77 @@ async function deleteProject(projectId) {
     if (error) throw error;
     await loadProjects();
   } catch (error) {
-    alert('Delete failed: ' + error.message);
+    alert(t('delete_failed', {error: error.message}));
   }
 }
 
 // ===== TRANSLATION PAGE LOADING =====
+
+// Migrate old string-based literalTranslation format to array format
+function migrateLiteralTranslationFormat(jsonData) {
+  if (!jsonData || !jsonData.paragraphs) return;
+
+  jsonData.paragraphs.forEach(paragraph => {
+    if (!paragraph.segments || !Array.isArray(paragraph.segments)) return;
+
+    paragraph.segments.forEach(segment => {
+      // Check if literalTranslation exists and has language keys
+      if (!segment.literalTranslation) return;
+
+      Object.keys(segment.literalTranslation).forEach(lang => {
+        const value = segment.literalTranslation[lang];
+
+        // If it's a string, convert to array
+        if (typeof value === 'string') {
+          // Split by spaces and filter empty strings
+          const words = value.split(' ').filter(w => w.trim());
+
+          // Ensure array is same length as baseline
+          const baselineLength = (segment.baseline || []).length;
+          const literalArray = new Array(baselineLength).fill('');
+
+          // Fill array with words (may be shorter than baseline if incomplete)
+          words.forEach((word, idx) => {
+            if (idx < baselineLength) {
+              literalArray[idx] = word;
+            }
+          });
+
+          // Check for merges and repeat the gloss at those positions
+          const merges = segment.literalTranslationMerges || [];
+          merges.forEach(merge => {
+            const gloss = merge.gloss || '';
+            merge.wordIndices.forEach(idx => {
+              if (idx < baselineLength) {
+                literalArray[idx] = gloss;
+              }
+            });
+          });
+
+          segment.literalTranslation[lang] = literalArray;
+        }
+        // If it's already an array, ensure it's the right length and apply merges
+        else if (Array.isArray(value)) {
+          const baselineLength = (segment.baseline || []).length;
+          while (value.length < baselineLength) {
+            value.push('');
+          }
+
+          // Ensure merged positions have the gloss repeated
+          const merges = segment.literalTranslationMerges || [];
+          merges.forEach(merge => {
+            const gloss = merge.gloss || '';
+            merge.wordIndices.forEach(idx => {
+              if (idx < baselineLength) {
+                value[idx] = gloss;
+              }
+            });
+          });
+        }
+      });
+    });
+  });
+}
 
 async function loadTranslationPage(shareCode) {
   try {
@@ -377,6 +443,9 @@ async function loadTranslationPage(shareCode) {
     }
     currentProject.json_data = jsonData;
 
+    // Migrate old string-based literalTranslation to array format
+    migrateLiteralTranslationFormat(jsonData);
+
     // Prepare data for both views
     prepareChunksForMobile();
 
@@ -387,7 +456,7 @@ async function loadTranslationPage(shareCode) {
     renderTranslationInterface();
 
   } catch (error) {
-    showError('Error', 'Failed to load project: ' + error.message);
+    showError(t('error'), t('failed_to_load_project', {error: error.message}));
   }
 }
 
@@ -492,6 +561,8 @@ function renderMobileChunkSelect() {
             `;
           }).join('')}
         </div>
+
+        <button class="mobile-button mobile-button-secondary" style="margin-top: 16px;" onclick="openFullTextModal()">View Full Text</button>
       </div>
     </div>
   `;
@@ -508,7 +579,7 @@ function isChunkCompleted(chunk) {
 
   // Check if all baseline words have literal translations
   const baselineWords = segment.baseline || [];
-  const literalWords = (segment.literalTranslation?.en || '').split(' ').filter(w => w.trim());
+  const literalWords = segment.literalTranslation?.en || [];
   const merges = segment.literalTranslationMerges || [];
 
   // Count how many words are covered by merges
@@ -577,6 +648,8 @@ function renderMobileFreeTranslation() {
             ${t('ok')}
           </button>
         </div>
+
+        <button class="mobile-button mobile-button-secondary" style="margin-top: 16px;" onclick="openFullTextModal()">View Full Text</button>
       </div>
     </div>
   `;
@@ -621,9 +694,10 @@ function renderMobileWordTranslation() {
 
   // Check if current word is linked with other words
   const merges = segment.literalTranslationMerges || [];
+  const literalWords = segment.literalTranslation?.en || [];
   let currentMerge = null;
   let linkedWords = [words[currentWordIndex]];
-  let linkedTranslation = '';
+  let linkedTranslation = literalWords[currentWordIndex] || '';
   let linkedIndices = [currentWordIndex];
 
   for (const merge of merges) {
@@ -657,7 +731,7 @@ function renderMobileWordTranslation() {
         </div>
 
         <div class="mobile-context">
-          <div class="mobile-context-label">${t('free_translation')}</div>
+          <div class="mobile-context-label">${t('baseline')}</div>
           <div class="mobile-context-text">${escapeHtml(baselineText)}</div>
         </div>
 
@@ -665,10 +739,10 @@ function renderMobileWordTranslation() {
           <div class="mobile-word-display">
             <div class="mobile-word-label">${t('baseline')}</div>
             <div class="mobile-word-text ${isLinked ? 'mobile-word-linked' : ''}">${escapeHtml(linkedWords.join(' + '))}</div>
-            <div class="mobile-word-counter">${currentWordIndex + 1} of ${totalWords}${isLinked ? ` (${linkedWords.length} words linked)` : ''}</div>
+            <div class="mobile-word-counter">${t('word_of', {current: currentWordIndex + 1, total: totalWords})}${isLinked ? ` (${t('words_linked', {count: linkedWords.length})})` : ''}</div>
             ${isLinked ? `
               <button class="mobile-unlink-button" onclick="unlinkMobileWords()">
-                Unlink All ↶
+                ${t('unlink_all')} ↶
               </button>
             ` : ''}
           </div>
@@ -687,7 +761,7 @@ function renderMobileWordTranslation() {
 
           ${canLinkMore ? `
             <button class="mobile-link-button" onclick="linkWithNextWord()">
-              ${isLinked ? 'Link another word' : 'Link with next word'} (${escapeHtml(words[lastLinkedIndex + 1])}) →
+              ${isLinked ? t('link_another_word') : t('link_with_next_word')} (${escapeHtml(words[lastLinkedIndex + 1])}) →
             </button>
           ` : ''}
         </div>
@@ -706,6 +780,8 @@ function renderMobileWordTranslation() {
             ${currentWordIndex < totalWords - 1 ? t('next') : t('finish')}
           </button>
         </div>
+
+        <button class="mobile-button mobile-button-secondary" style="margin-top: 16px;" onclick="openFullTextModal()">View Full Text</button>
       </div>
     </div>
   `;
@@ -745,17 +821,20 @@ function handleMobileWordTranslationChange(e) {
     mergeForCurrentWord.gloss = value;
   } else {
     // Update individual word translation
-    const literalWords = (segment.literalTranslation?.en || '').split(' ').filter(w => w.trim());
-
-    while (literalWords.length <= currentWordIndex) {
-      literalWords.push('');
-    }
-    literalWords[currentWordIndex] = value;
-
     if (!segment.literalTranslation) {
       segment.literalTranslation = {};
     }
-    segment.literalTranslation.en = literalWords.join(' ');
+    if (!Array.isArray(segment.literalTranslation.en)) {
+      segment.literalTranslation.en = [];
+    }
+    const literalWords = segment.literalTranslation.en;
+
+    // Ensure array is same length as baseline
+    const baselineLength = (segment.baseline || []).length;
+    while (literalWords.length < baselineLength) {
+      literalWords.push('');
+    }
+    literalWords[currentWordIndex] = value;
   }
 
   debouncedSave();
@@ -763,15 +842,34 @@ function handleMobileWordTranslationChange(e) {
 
 function nextWord() {
   const chunk = chunkData[currentChunkIndex];
-  const totalWords = (chunk.segment.baseline || []).length;
+  const segment = chunk.segment;
+  const totalWords = (segment.baseline || []).length;
+  const merges = segment.literalTranslationMerges || [];
 
-  if (currentWordIndex < totalWords - 1) {
-    currentWordIndex++;
-    renderMobileState();
-  } else {
-    mobileFlowState = FLOW_STATES.CHUNK_COMPLETE;
-    renderMobileState();
+  // Find if current word is part of a merge
+  let currentMerge = null;
+  for (const merge of merges) {
+    if (merge.wordIndices.includes(currentWordIndex)) {
+      currentMerge = merge;
+      break;
+    }
   }
+
+  // If in a merge, jump to the word after the last linked word
+  if (currentMerge) {
+    const lastLinkedIndex = Math.max(...currentMerge.wordIndices);
+    currentWordIndex = lastLinkedIndex + 1;
+  } else {
+    // Otherwise just go to next word
+    currentWordIndex++;
+  }
+
+  // Check if we've reached the end
+  if (currentWordIndex >= totalWords) {
+    mobileFlowState = FLOW_STATES.CHUNK_COMPLETE;
+  }
+
+  renderMobileState();
 }
 
 function previousWord() {
@@ -824,13 +922,15 @@ function renderMobileChunkComplete() {
               ${t('yes')}
             </button>
           </div>
+          <button class="mobile-button mobile-button-secondary" style="margin-top: 16px;" onclick="openFullTextModal()">View Full Text</button>
         </div>
       ` : `
         <div class="mobile-card">
-          <h3>All chunks completed!</h3>
+          <h3>${t('all_chunks_completed')}</h3>
           <button class="mobile-button mobile-button-success" onclick="backToChunkSelect()">
             ${t('finish')}
           </button>
+          <button class="mobile-button mobile-button-secondary" style="margin-top: 16px;" onclick="openFullTextModal()">View Full Text</button>
         </div>
       `}
     </div>
@@ -853,11 +953,20 @@ function linkWithNextWord() {
   const segment = chunk.segment;
   const words = segment.baseline || [];
 
-  if (currentWordIndex >= words.length - 1) return;
-
   // Initialize literalTranslationMerges if it doesn't exist
   if (!segment.literalTranslationMerges) {
     segment.literalTranslationMerges = [];
+  }
+
+  // Initialize literalTranslation array if needed
+  if (!segment.literalTranslation) segment.literalTranslation = {};
+  if (!Array.isArray(segment.literalTranslation.en)) {
+    segment.literalTranslation.en = [];
+  }
+  // Ensure array is same length as baseline
+  const baselineLength = (segment.baseline || []).length;
+  while (segment.literalTranslation.en.length < baselineLength) {
+    segment.literalTranslation.en.push('');
   }
 
   // Get current translation value from input
@@ -874,17 +983,34 @@ function linkWithNextWord() {
   }
 
   if (existingMerge) {
+    // Find the last word in the existing merge
+    const lastLinkedIndex = Math.max(...existingMerge.wordIndices);
+    const nextWordIndex = lastLinkedIndex + 1;
+
     // Extend existing merge to include next word
-    if (!existingMerge.wordIndices.includes(currentWordIndex + 1)) {
-      existingMerge.wordIndices.push(currentWordIndex + 1);
+    if (nextWordIndex < words.length && !existingMerge.wordIndices.includes(nextWordIndex)) {
+      existingMerge.wordIndices.push(nextWordIndex);
       existingMerge.wordIndices.sort((a, b) => a - b);
+      existingMerge.gloss = glossValue; // Update the gloss
+
+      // Repeat the gloss for all merged word positions
+      existingMerge.wordIndices.forEach(idx => {
+        segment.literalTranslation.en[idx] = glossValue;
+      });
     }
   } else {
-    // Create new merge
-    segment.literalTranslationMerges.push({
-      wordIndices: [currentWordIndex, currentWordIndex + 1],
-      gloss: glossValue
-    });
+    // Create new merge with current word and next word
+    const nextWordIndex = currentWordIndex + 1;
+    if (nextWordIndex < words.length) {
+      segment.literalTranslationMerges.push({
+        wordIndices: [currentWordIndex, nextWordIndex],
+        gloss: glossValue
+      });
+
+      // Repeat the gloss in array for both merged words
+      segment.literalTranslation.en[currentWordIndex] = glossValue;
+      segment.literalTranslation.en[nextWordIndex] = glossValue;
+    }
   }
 
   debouncedSave();
@@ -926,10 +1052,10 @@ function renderDesktopView() {
 
   main.innerHTML = `
     <div class="project-info">
-      <div class="project-title">${escapeHtml(jsonData.textTitle || 'Translation Project')}</div>
+      <div class="project-title">${escapeHtml(jsonData.textTitle || t('translation_project'))}</div>
       <div class="project-stats">
-        <span>Total segments: ${allSegments.length}</span>
-        <span>Completed: ${completedSegments}</span>
+        <span>${t('total_segments')}: ${allSegments.length}</span>
+        <span>${t('completed')}: ${completedSegments}</span>
       </div>
       <div class="progress-container">
         <div class="progress-bar">
@@ -939,9 +1065,10 @@ function renderDesktopView() {
       <div class="sync-controls">
         <label class="sync-toggle">
           <input type="checkbox" id="auto-sync-toggle" ${autoSyncEnabled ? 'checked' : ''} onchange="toggleAutoSync()">
-          Auto-sync
+          ${t('auto_sync')}
         </label>
-        <button class="button-small" onclick="manualSync()">Sync Now</button>
+        <button class="button-small" onclick="manualSync()">${t('sync_now')}</button>
+        <button class="button-small view-full-text-button" onclick="openFullTextModal()">View Full Text</button>
         <span class="save-indicator" id="save-indicator"></span>
       </div>
     </div>
@@ -973,13 +1100,12 @@ function renderDesktopSegments() {
 
 function renderDesktopSegment(segment, index) {
   const words = segment.baseline || [];
-  const literalTranslation = segment.literalTranslation?.en || '';
   const freeTranslation = segment.freeTranslation?.en || '';
   const baselineChanges = segment.baselineChanges || [];
   const merges = segment.literalTranslationMerges || [];
 
-  // Split literal translation by words (if it exists)
-  const literalWords = literalTranslation ? literalTranslation.split(' ') : [];
+  // Get literal translation array (one-to-one with baseline)
+  const literalWords = segment.literalTranslation?.en || [];
 
   // Track which baseline words have pending changes
   const changesMap = {};
@@ -1016,7 +1142,7 @@ function renderDesktopSegment(segment, index) {
   const rowsHtml = wordChunks.map(chunk => {
     const baselineRow = `
       <tr>
-        <td>Baseline</td>
+        <td>${t('baseline')}</td>
         ${chunk.words.map((w, localIdx) => {
           const i = chunk.startIdx + localIdx;
           const hasChange = changesMap[i] !== undefined;
@@ -1031,7 +1157,7 @@ function renderDesktopSegment(segment, index) {
                 data-original="${escapeHtml(w)}"
                 value="${escapeHtml(displayValue)}"
                 class="baseline-input"
-                title="${hasChange ? 'Original: ' + escapeHtml(w) : ''}"
+                title="${hasChange ? t('original') + ': ' + escapeHtml(w) : ''}"
                 onfocus="showResetButton(this)"
                 onblur="hideResetButton(this)"
               >
@@ -1044,7 +1170,7 @@ function renderDesktopSegment(segment, index) {
 
     const wfwRow = `
       <tr>
-        <td>WFW</td>
+        <td>${t('wfw')}</td>
         ${chunk.words.map((w, localIdx) => {
           const i = chunk.startIdx + localIdx;
           const mergeInfo = mergeMap[i];
@@ -1073,13 +1199,13 @@ function renderDesktopSegment(segment, index) {
                 <button
                   class="merge-button"
                   onclick="mergeWFWCells(${index}, ${i})"
-                  title="Merge with next cell"
+                  title="${t('merge_with_next')}"
                   ${i === words.length - 1 ? 'disabled' : ''}
                 >→</button>
                 <button
                   class="unmerge-button ${isMerged ? '' : 'hidden'}"
                   onclick="unmergeWFWCells(${index}, ${i})"
-                  title="Unmerge cells"
+                  title="${t('unmerge_cells')}"
                 >↶</button>
               </div>
             </td>
@@ -1098,7 +1224,7 @@ function renderDesktopSegment(segment, index) {
         <tr class="free-row">
           <td colspan="${WORDS_PER_ROW + 1}">
             <div style="display: grid; grid-template-columns: 100px 1fr;">
-              <div style="padding: 8px; font-weight: 600; background: #f8fafc; border-right: 1px solid #e2e8f0;">Free</div>
+              <div style="padding: 8px; font-weight: 600; background: #f8fafc; border-right: 1px solid #e2e8f0;">${t('free')}</div>
               <textarea
                 data-segment="${index}"
                 data-field="free"
@@ -1221,20 +1347,26 @@ function handleLiteralTranslationChange(segmentIndex, wordIndex, value) {
     saveMergeToData(segmentIndex, wordIndices, value);
   }
 
-  // Get all word textareas for this segment (not hidden ones)
+  // Get all word textareas for this segment
   const wordTextareas = document.querySelectorAll(`textarea[data-segment="${segmentIndex}"][data-field="literal"]`);
-  const literalWords = [];
 
-  wordTextareas.forEach(ta => {
-    const cell = ta.closest('td');
-    if (cell && cell.style.display !== 'none') {
-      literalWords.push(ta.value);
-    }
-  });
-
-  // Update segment data
+  // Initialize literalTranslation array
   if (!segment.literalTranslation) segment.literalTranslation = {};
-  segment.literalTranslation.en = literalWords.join(' ');
+  if (!Array.isArray(segment.literalTranslation.en)) {
+    segment.literalTranslation.en = [];
+  }
+
+  // Ensure array is same length as baseline
+  const baselineLength = (segment.baseline || []).length;
+  while (segment.literalTranslation.en.length < baselineLength) {
+    segment.literalTranslation.en.push('');
+  }
+
+  // Update the array with values from textareas
+  wordTextareas.forEach(ta => {
+    const idx = parseInt(ta.dataset.word);
+    segment.literalTranslation.en[idx] = ta.value;
+  });
 
   debouncedSave();
 }
@@ -1329,6 +1461,18 @@ function saveMergeToData(segmentIndex, wordIndices, gloss) {
   // Initialize literalTranslationMerges if it doesn't exist
   if (!segment.literalTranslationMerges) segment.literalTranslationMerges = [];
 
+  // Initialize literalTranslation array if needed
+  if (!segment.literalTranslation) segment.literalTranslation = {};
+  if (!Array.isArray(segment.literalTranslation.en)) {
+    segment.literalTranslation.en = [];
+  }
+
+  // Ensure array is same length as baseline
+  const baselineLength = (segment.baseline || []).length;
+  while (segment.literalTranslation.en.length < baselineLength) {
+    segment.literalTranslation.en.push('');
+  }
+
   // Remove any existing merge that includes these words
   segment.literalTranslationMerges = segment.literalTranslationMerges.filter(merge => {
     return !merge.wordIndices.some(idx => wordIndices.includes(idx));
@@ -1339,6 +1483,11 @@ function saveMergeToData(segmentIndex, wordIndices, gloss) {
     segment.literalTranslationMerges.push({
       wordIndices: wordIndices,
       gloss: gloss || ''
+    });
+
+    // Repeat the gloss in literalTranslation array for each merged cell
+    wordIndices.forEach(idx => {
+      segment.literalTranslation.en[idx] = gloss || '';
     });
   }
 
@@ -1408,19 +1557,19 @@ function showSaveIndicator(status) {
   indicator.className = `save-indicator ${status}`;
 
   if (status === 'unsaved') {
-    indicator.textContent = 'Saved locally';
+    indicator.textContent = t('saved_locally');
   } else if (status === 'syncing') {
-    indicator.textContent = 'Syncing...';
+    indicator.textContent = t('syncing');
   } else if (status === 'saved') {
-    indicator.textContent = 'Synced';
+    indicator.textContent = t('synced');
     saveIndicatorTimeout = setTimeout(() => {
       indicator.textContent = '';
       indicator.className = 'save-indicator';
     }, 2000);
   } else if (status === 'offline') {
-    indicator.textContent = 'Saved locally (will sync when online)';
+    indicator.textContent = t('saved_locally_sync_when_online');
   } else if (status === 'error') {
-    indicator.textContent = 'Error saving';
+    indicator.textContent = t('error_saving');
   }
 }
 
@@ -1441,7 +1590,7 @@ function showError(title, message) {
     <div class="error-container" style="text-align: center; padding: 40px;">
       <h3>${escapeHtml(title)}</h3>
       <p>${escapeHtml(message)}</p>
-      <button onclick="window.location.reload()" style="margin-top: 20px;">Reload</button>
+      <button onclick="window.location.reload()" style="margin-top: 20px;">${t('reload')}</button>
     </div>
   `;
 }
@@ -1525,6 +1674,112 @@ function toggleAutoSync() {
 async function manualSync() {
   showSaveIndicator('syncing');
   await saveProject();
+}
+
+// ===== FULL TEXT MODAL =====
+
+function openFullTextModal() {
+  if (!currentProject || !currentProject.json_data) {
+    return;
+  }
+
+  const modalHtml = generateFullTextModalHtml();
+
+  // Add modal to body
+  const modalContainer = document.createElement('div');
+  modalContainer.id = 'full-text-modal';
+  modalContainer.innerHTML = modalHtml;
+  document.body.appendChild(modalContainer);
+
+  // Prevent body scroll
+  document.body.style.overflow = 'hidden';
+
+  // Close on overlay click
+  const overlay = modalContainer.querySelector('.modal-overlay');
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) {
+      closeFullTextModal();
+    }
+  });
+
+  // Close on Escape key
+  document.addEventListener('keydown', handleModalEscape);
+}
+
+function closeFullTextModal() {
+  const modal = document.getElementById('full-text-modal');
+  if (modal) {
+    modal.remove();
+  }
+
+  // Restore body scroll
+  document.body.style.overflow = '';
+
+  // Remove escape key listener
+  document.removeEventListener('keydown', handleModalEscape);
+}
+
+function handleModalEscape(e) {
+  if (e.key === 'Escape') {
+    closeFullTextModal();
+  }
+}
+
+function generateFullTextModalHtml() {
+  const jsonData = currentProject.json_data;
+  const title = jsonData.textTitle || 'Translation Text';
+
+  // Generate full text content
+  const fullTextContent = generateFullTextContent();
+
+  return `
+    <div class="modal-overlay">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 class="modal-title">${escapeHtml(title)}</h2>
+          <button class="modal-close" onclick="closeFullTextModal()" aria-label="Close">&times;</button>
+        </div>
+        <div class="modal-body">
+          ${fullTextContent}
+        </div>
+        <div class="modal-footer">
+          <button class="button-secondary" onclick="closeFullTextModal()">Close</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function generateFullTextContent() {
+  const jsonData = currentProject.json_data;
+  const paragraphs = jsonData.paragraphs || [];
+
+  const baselineTexts = [];
+
+  paragraphs.forEach((paragraph) => {
+    const segments = paragraph.segments || [];
+
+    segments.forEach((segment) => {
+      // Get baseline text (with changes applied)
+      const baselineWords = (segment.baseline || []).map((word, idx) => {
+        const change = (segment.baselineChanges || []).find(c => c.wordIndex === idx);
+        return change ? change.newValue : word;
+      });
+      const baselineText = baselineWords.join(' ');
+      if (baselineText.trim()) {
+        baselineTexts.push(baselineText);
+      }
+    });
+  });
+
+  if (baselineTexts.length === 0) {
+    return '<p class="full-text-empty">No text available</p>';
+  }
+
+  // Join all baseline texts with spaces to create flowing text
+  const fullText = baselineTexts.join(' ');
+
+  return `<div class="full-text-display">${escapeHtml(fullText)}</div>`;
 }
 
 // ===== START APP =====

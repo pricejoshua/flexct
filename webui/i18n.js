@@ -25,6 +25,8 @@ const translations = {
     sign_up: 'Sign Up',
     email: 'Email',
     password: 'Password',
+    linguist_sign_in: 'Linguist Sign In',
+    community_link_note: 'Community members: Use the link provided by your linguist',
 
     // Desktop view (existing interface)
     desktop_view: 'Desktop View',
@@ -66,6 +68,10 @@ const translations = {
     offline: 'Offline',
     saved_locally: 'Saved locally',
     will_sync: 'Will sync when online',
+    saved_locally_sync_when_online: 'Saved locally (will sync when online)',
+    error_saving: 'Error saving',
+    auto_sync: 'Auto-sync',
+    sync_now: 'Sync Now',
 
     // Instructions
     upload_instruction: 'Upload a JSON file to get started',
@@ -77,6 +83,41 @@ const translations = {
     total_chunks: 'Total chunks',
     words_remaining: 'words remaining',
     chunk_of: 'Chunk {current} of {total}',
+
+    // Dashboard
+    my_projects: 'My Projects',
+    upload_new_project: 'Upload New Project',
+    upload: 'Upload',
+    loading_projects: 'Loading projects...',
+    no_projects_yet: 'No projects yet. Upload a JSON file to get started.',
+    share_code: 'Share Code',
+    created: 'Created',
+    copy_share_link: 'Copy Share Link',
+    download_json: 'Download JSON',
+    delete: 'Delete',
+    please_select_file: 'Please select a file',
+    project_uploaded: 'Project uploaded! Share code: <strong>{shareCode}</strong>',
+    share_link_copied: 'Share link copied to clipboard!',
+    confirm_delete: 'Are you sure you want to delete this project?',
+    download_failed: 'Download failed: {error}',
+    delete_failed: 'Delete failed: {error}',
+    upload_failed: 'Upload failed: {error}',
+    error_loading_projects: 'Error loading projects: {error}',
+    failed_to_load_project: 'Failed to load project: {error}',
+    account_created: 'Account created! Please check your email for verification.',
+
+    // Translation interface labels
+    translation_project: 'Translation Project',
+    words_linked: '{count} words linked',
+    word_of: '{current} of {total}',
+    link_another_word: 'Link another word',
+    link_with_next_word: 'Link with next word',
+    unlink_all: 'Unlink All',
+    merge_with_next: 'Merge with next cell',
+    unmerge_cells: 'Unmerge cells',
+    all_chunks_completed: 'All chunks completed!',
+    original: 'Original',
+    reload: 'Reload',
   },
 
   azj: {
@@ -97,6 +138,8 @@ const translations = {
     sign_up: 'Qeydiyyat',
     email: 'E-poçt',
     password: 'Şifrə',
+    linguist_sign_in: 'Dilçi Daxil Olması',
+    community_link_note: 'İcma üzvləri: Dilçiniz tərəfindən verilən linkdən istifadə edin',
 
     // Desktop view (existing interface)
     desktop_view: 'Masaüstü görünüş',
@@ -138,6 +181,10 @@ const translations = {
     offline: 'Oflayn',
     saved_locally: 'Lokal olaraq saxlanıldı',
     will_sync: 'Onlayn olanda sinxronlaşdırılacaq',
+    saved_locally_sync_when_online: 'Lokal olaraq saxlanıldı (onlayn olanda sinxronlaşdırılacaq)',
+    error_saving: 'Saxlama xətası',
+    auto_sync: 'Avtomatik sinxronlaşdırma',
+    sync_now: 'İndi Sinxronlaşdır',
 
     // Instructions
     upload_instruction: 'Başlamaq üçün JSON faylı yükləyin',
@@ -149,6 +196,41 @@ const translations = {
     total_chunks: 'Ümumi hissələr',
     words_remaining: 'qalan sözlər',
     chunk_of: 'Hissə {current} / {total}',
+
+    // Dashboard
+    my_projects: 'Mənim Layihələrim',
+    upload_new_project: 'Yeni Layihə Yüklə',
+    upload: 'Yüklə',
+    loading_projects: 'Layihələr yüklənir...',
+    no_projects_yet: 'Hələ layihə yoxdur. Başlamaq üçün JSON faylı yükləyin.',
+    share_code: 'Paylaşma Kodu',
+    created: 'Yaradıldı',
+    copy_share_link: 'Paylaşma Linkini Kopyala',
+    download_json: 'JSON Yüklə',
+    delete: 'Sil',
+    please_select_file: 'Zəhmət olmasa fayl seçin',
+    project_uploaded: 'Layihə yükləndi! Paylaşma kodu: <strong>{shareCode}</strong>',
+    share_link_copied: 'Paylaşma linki panoya kopyalandı!',
+    confirm_delete: 'Bu layihəni silmək istədiyinizə əminsiniz?',
+    download_failed: 'Yükləmə uğursuz oldu: {error}',
+    delete_failed: 'Silmə uğursuz oldu: {error}',
+    upload_failed: 'Yükləmə uğursuz oldu: {error}',
+    error_loading_projects: 'Layihələr yüklənərkən xəta: {error}',
+    failed_to_load_project: 'Layihə yüklənə bilmədi: {error}',
+    account_created: 'Hesab yaradıldı! Təsdiq üçün e-poçtunuzu yoxlayın.',
+
+    // Translation interface labels
+    translation_project: 'Tərcümə Layihəsi',
+    words_linked: '{count} söz əlaqələndirildi',
+    word_of: '{current} / {total}',
+    link_another_word: 'Başqa söz əlaqələndir',
+    link_with_next_word: 'Növbəti sözlə əlaqələndir',
+    unlink_all: 'Hamısını Ayır',
+    merge_with_next: 'Növbəti hüceyrə ilə birləşdir',
+    unmerge_cells: 'Hüceyrələri ayır',
+    all_chunks_completed: 'Bütün hissələr tamamlandı!',
+    original: 'Orijinal',
+    reload: 'Yenidən Yüklə',
   },
 };
 

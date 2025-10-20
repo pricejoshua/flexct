@@ -9,7 +9,6 @@
 <body>
   <div id="app">
     <header>
-      <h1>FLEX Translation</h1>
       <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
         <div id="language-selector-container"></div>
         <div id="auth-status"></div>
@@ -33,8 +32,22 @@
       }
     }
 
+    // Update page title and header on language change
+    function updateUILanguage() {
+    }
+
     window.addEventListener('load', () => {
       initLanguageSelector();
+      updateUILanguage();
+    });
+
+    // Listen for language changes
+    window.addEventListener('languageChanged', () => {
+      updateUILanguage();
+      // Re-render current page if needed
+      if (typeof router === 'function') {
+        router();
+      }
     });
   </script>
   <script src="app.js"></script>
