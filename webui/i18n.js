@@ -110,6 +110,7 @@ const translations = {
     translation_project: 'Translation Project',
     words_linked: '{count} words linked',
     word_of: '{current} of {total}',
+    text_of: '{current} of {total}',
     link_another_word: 'Link another word',
     link_with_next_word: 'Link with next word',
     unlink_all: 'Unlink All',
@@ -118,6 +119,7 @@ const translations = {
     all_chunks_completed: 'All chunks completed!',
     original: 'Original',
     reload: 'Reload',
+    select_text: 'Select Text',
   },
 
   azj: {
@@ -223,6 +225,7 @@ const translations = {
     translation_project: 'Tərcümə Layihəsi',
     words_linked: '{count} söz əlaqələndirildi',
     word_of: '{current} / {total}',
+    text_of: '{current} / {total}',
     link_another_word: 'Başqa söz əlaqələndir',
     link_with_next_word: 'Növbəti sözlə əlaqələndir',
     unlink_all: 'Hamısını Ayır',
@@ -231,6 +234,7 @@ const translations = {
     all_chunks_completed: 'Bütün hissələr tamamlandı!',
     original: 'Orijinal',
     reload: 'Yenidən Yüklə',
+    select_text: 'Mətn seç',
   },
 };
 

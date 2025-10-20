@@ -24,6 +24,7 @@ const FLOW_STATES = {
 
 let currentUser = null;
 let currentProject = null;
+let currentTextIndex = 0; // Track which text in the array we're working on
 let currentViewMode = VIEW_MODES.AUTO; // User preference
 let activeViewMode = VIEW_MODES.DESKTOP; // Actual active view
 let saveTimeout = null;
@@ -122,18 +123,26 @@ async function router() {
   // Route to appropriate page
   if (path.includes('/p/') || hash.includes('#p/')) {
     let shareCode;
+    let textIndex = 0;
+
     if (path.includes('/p/')) {
-      shareCode = path.split('/p/')[1].split('?')[0];
+      const parts = path.split('/p/')[1].split('/');
+      shareCode = parts[0].split('?')[0];
+      if (parts[1] === 'text' && parts[2]) {
+        textIndex = parseInt(parts[2], 10) || 0;
+      }
     } else {
-      const hashMatch = hash.match(/#p\/([A-Z0-9]+)/i);
+      // Match patterns: #p/SHARECODE or #p/SHARECODE/text/0
+      const hashMatch = hash.match(/#p\/([A-Z0-9]+)(?:\/text\/(\d+))?/i);
       if (hashMatch) {
         shareCode = hashMatch[1];
+        textIndex = hashMatch[2] ? parseInt(hashMatch[2], 10) : 0;
       } else {
-        shareCode = hash.split('#p/')[1].split('?')[0];
+        shareCode = hash.split('#p/')[1].split('?')[0].split('/')[0];
       }
     }
     shareCode = shareCode.trim();
-    await loadTranslationPage(shareCode);
+    await loadTranslationPage(shareCode, textIndex);
   } else if (currentUser) {
     await loadDashboard();
   } else {
@@ -275,12 +284,16 @@ async function uploadProject() {
     const text = await file.text();
     const jsonData = JSON.parse(text);
 
-    let projectData = jsonData;
-    if (Array.isArray(jsonData) && jsonData.length > 0) {
-      projectData = jsonData[0];
+    // Normalize to array format: single object becomes array with one element
+    let textsArray = Array.isArray(jsonData) ? jsonData : [jsonData];
+
+    // Validate that we have at least one text
+    if (textsArray.length === 0) {
+      throw new Error('JSON file contains no texts');
     }
 
-    const title = projectData.textTitle || file.name.replace('.json', '');
+    // Use first text's title for project title, or filename
+    const title = textsArray[0].textTitle || file.name.replace('.json', '');
     const shareCode = generateShareCode();
 
     const { error } = await supabase
@@ -289,7 +302,7 @@ async function uploadProject() {
         linguist_id: currentUser.id,
         title: title,
         share_code: shareCode,
-        json_data: jsonData
+        json_data: textsArray
       });
 
     if (error) throw error;
@@ -423,7 +436,7 @@ function migrateLiteralTranslationFormat(jsonData) {
   });
 }
 
-async function loadTranslationPage(shareCode) {
+async function loadTranslationPage(shareCode, textIndex = 0) {
   try {
     const { data: project, error } = await supabase
       .from('projects')
@@ -436,15 +449,21 @@ async function loadTranslationPage(shareCode) {
 
     currentProject = project;
 
-    // Normalize JSON data
-    let jsonData = currentProject.json_data;
-    if (Array.isArray(jsonData) && jsonData.length > 0) {
-      jsonData = jsonData[0];
+    // Ensure json_data is an array (normalize old single-object format)
+    if (!Array.isArray(currentProject.json_data)) {
+      currentProject.json_data = [currentProject.json_data];
     }
-    currentProject.json_data = jsonData;
 
-    // Migrate old string-based literalTranslation to array format
-    migrateLiteralTranslationFormat(jsonData);
+    // Validate text index
+    if (textIndex < 0 || textIndex >= currentProject.json_data.length) {
+      textIndex = 0;
+    }
+    currentTextIndex = textIndex;
+
+    // Migrate old string-based literalTranslation to array format for all texts
+    currentProject.json_data.forEach(text => {
+      migrateLiteralTranslationFormat(text);
+    });
 
     // Prepare data for both views
     prepareChunksForMobile();
@@ -462,13 +481,13 @@ async function loadTranslationPage(shareCode) {
 
 function prepareChunksForMobile() {
   chunkData = [];
-  const jsonData = currentProject.json_data;
+  const currentText = getCurrentText();
 
-  if (!jsonData || !jsonData.paragraphs) {
+  if (!currentText || !currentText.paragraphs) {
     throw new Error('Invalid project data structure');
   }
 
-  jsonData.paragraphs.forEach((paragraph, pIdx) => {
+  currentText.paragraphs.forEach((paragraph, pIdx) => {
     if (paragraph.segments && Array.isArray(paragraph.segments)) {
       paragraph.segments.forEach((segment, sIdx) => {
         chunkData.push({
@@ -480,6 +499,12 @@ function prepareChunksForMobile() {
       });
     }
   });
+}
+
+// Helper function to get the current text object
+function getCurrentText() {
+  if (!currentProject || !currentProject.json_data) return null;
+  return currentProject.json_data[currentTextIndex];
 }
 
 
@@ -540,7 +565,7 @@ function renderMobileChunkSelect() {
     <div class="mobile-screen">
       <div class="mobile-card">
         <div class="mobile-card-header">
-          <h2 class="mobile-card-title">${currentProject.json_data.textTitle || t('choose_text')}</h2>
+          <h2 class="mobile-card-title">${getCurrentText().textTitle || t('choose_text')}</h2>
           <div class="progress-container">
             <div class="progress-bar">
               <div class="progress-fill" style="width: ${progress}%"></div>
@@ -1041,18 +1066,35 @@ function unlinkMobileWords() {
 
 function renderDesktopView() {
   const main = document.getElementById('main-content');
-  const jsonData = currentProject.json_data;
+  const currentText = getCurrentText();
+  const textsArray = currentProject.json_data;
 
   // Calculate progress
-  const allSegments = jsonData.paragraphs.flatMap(p => p.segments || []);
+  const allSegments = currentText.paragraphs.flatMap(p => p.segments || []);
   const completedSegments = allSegments.filter(s =>
     s.freeTranslation?.en && s.freeTranslation.en.trim() !== ''
   ).length;
   const progress = allSegments.length > 0 ? (completedSegments / allSegments.length * 100) : 0;
 
+  // Build text selector if multiple texts
+  const textSelectorHtml = textsArray.length > 1 ? `
+    <div class="text-selector">
+      <label for="text-select">${t('select_text')}:</label>
+      <select id="text-select" onchange="switchText(this.value)">
+        ${textsArray.map((text, idx) => `
+          <option value="${idx}" ${idx === currentTextIndex ? 'selected' : ''}>
+            ${escapeHtml(text.textTitle || `Text ${idx + 1}`)}
+          </option>
+        `).join('')}
+      </select>
+      <span class="text-count">${t('text_of', {current: currentTextIndex + 1, total: textsArray.length})}</span>
+    </div>
+  ` : '';
+
   main.innerHTML = `
     <div class="project-info">
-      <div class="project-title">${escapeHtml(jsonData.textTitle || t('translation_project'))}</div>
+      ${textSelectorHtml}
+      <div class="project-title">${escapeHtml(currentText.textTitle || t('translation_project'))}</div>
       <div class="project-stats">
         <span>${t('total_segments')}: ${allSegments.length}</span>
         <span>${t('completed')}: ${completedSegments}</span>
@@ -1078,12 +1120,21 @@ function renderDesktopView() {
   renderDesktopSegments();
 }
 
+// Switch to a different text
+function switchText(textIndex) {
+  textIndex = parseInt(textIndex, 10);
+  if (textIndex === currentTextIndex) return;
+
+  const shareCode = currentProject.share_code;
+  window.location.hash = `#p/${shareCode}/text/${textIndex}`;
+}
+
 function renderDesktopSegments() {
   const container = document.getElementById('segments-container');
-  const jsonData = currentProject.json_data;
+  const currentText = getCurrentText();
 
   let segmentIndex = 0;
-  const segmentsHtml = jsonData.paragraphs.map((paragraph, pIdx) => {
+  const segmentsHtml = currentText.paragraphs.map((paragraph, pIdx) => {
     const segments = paragraph.segments || [];
     return segments.map((segment, sIdx) => {
       const html = renderDesktopSegment(segment, segmentIndex);
@@ -1261,7 +1312,8 @@ function attachDesktopInputListeners() {
 }
 
 function handleBaselineChange(segmentIndex, wordIndex, newValue, originalValue) {
-  const allSegments = currentProject.json_data.paragraphs.flatMap(p => p.segments || []);
+  const currentText = getCurrentText();
+  const allSegments = currentText.paragraphs.flatMap(p => p.segments || []);
   const segment = allSegments[segmentIndex];
 
   if (!segment) return;
@@ -1332,7 +1384,8 @@ function resetBaselineWord(segmentIndex, wordIndex) {
 
 function handleLiteralTranslationChange(segmentIndex, wordIndex, value) {
   // Update local data
-  const allSegments = currentProject.json_data.paragraphs.flatMap(p => p.segments);
+  const currentText = getCurrentText();
+  const allSegments = currentText.paragraphs.flatMap(p => p.segments);
   const segment = allSegments[segmentIndex];
 
   if (!segment) return;
@@ -1373,7 +1426,8 @@ function handleLiteralTranslationChange(segmentIndex, wordIndex, value) {
 
 function handleFreeTranslationChange(segmentIndex, value) {
   // Update local data
-  const allSegments = currentProject.json_data.paragraphs.flatMap(p => p.segments);
+  const currentText = getCurrentText();
+  const allSegments = currentText.paragraphs.flatMap(p => p.segments);
   const segment = allSegments[segmentIndex];
 
   if (!segment) return;
@@ -1453,7 +1507,8 @@ function unmergeWFWCells(segmentIndex, wordIndex) {
 }
 
 function saveMergeToData(segmentIndex, wordIndices, gloss) {
-  const allSegments = currentProject.json_data.paragraphs.flatMap(p => p.segments || []);
+  const currentText = getCurrentText();
+  const allSegments = currentText.paragraphs.flatMap(p => p.segments || []);
   const segment = allSegments[segmentIndex];
 
   if (!segment) return;
@@ -1495,7 +1550,8 @@ function saveMergeToData(segmentIndex, wordIndices, gloss) {
 }
 
 function removeMergeFromData(segmentIndex, wordIndices) {
-  const allSegments = currentProject.json_data.paragraphs.flatMap(p => p.segments || []);
+  const currentText = getCurrentText();
+  const allSegments = currentText.paragraphs.flatMap(p => p.segments || []);
   const segment = allSegments[segmentIndex];
 
   if (!segment || !segment.literalTranslationMerges) return;
@@ -1726,8 +1782,8 @@ function handleModalEscape(e) {
 }
 
 function generateFullTextModalHtml() {
-  const jsonData = currentProject.json_data;
-  const title = jsonData.textTitle || 'Translation Text';
+  const currentText = getCurrentText();
+  const title = currentText.textTitle || 'Translation Text';
 
   // Generate full text content
   const fullTextContent = generateFullTextContent();
@@ -1751,8 +1807,8 @@ function generateFullTextModalHtml() {
 }
 
 function generateFullTextContent() {
-  const jsonData = currentProject.json_data;
-  const paragraphs = jsonData.paragraphs || [];
+  const currentText = getCurrentText();
+  const paragraphs = currentText.paragraphs || [];
 
   const baselineTexts = [];
 

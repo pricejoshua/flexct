@@ -40,40 +40,51 @@ webui/
 
 ### JSON Structure (imported from/exported to FLEx)
 
-The core data structure stored in `projects.json_data`:
+The core data structure stored in `projects.json_data` is **an array of text objects** per the [JSON Schema](schema.json):
 
 ```json
-{
-  "textTitle": "Story Name",
-  "paragraphs": [{
-    "segments": [{
-      "hvo": 12345,
-      "baseline": ["word1", "word2", "word3"],
-      "baselineChanges": [
-        {
-          "wordIndex": 0,
-          "originalValue": "word1",
-          "newValue": "corrected1",
-          "timestamp": "2025-01-15T10:30:00Z"
-        }
-      ],
-      "literalTranslation": {"en": "word of first"},
-      "literalTranslationMerges": [
-        {
-          "wordIndices": [1, 2],
-          "gloss": "multi-word gloss"
-        }
-      ],
-      "freeTranslation": {"en": "The first word"}
+[
+  {
+    "textTitle": "Story Name",
+    "textAbbreviation": "STORY1",
+    "paragraphs": [{
+      "segments": [{
+        "hvo": 12345,
+        "baseline": ["word1", "word2", "word3"],
+        "baselineChanges": [
+          {
+            "wordIndex": 0,
+            "originalValue": "word1",
+            "newValue": "corrected1",
+            "timestamp": "2025-01-15T10:30:00Z"
+          }
+        ],
+        "literalTranslation": {"en": ["word", "of", "first"]},
+        "literalTranslationMerges": [
+          {
+            "wordIndices": [1, 2],
+            "gloss": "multi-word gloss"
+          }
+        ],
+        "freeTranslation": {"en": "The first word"}
+      }]
     }]
-  }]
-}
+  },
+  {
+    "textTitle": "Another Story",
+    "textAbbreviation": "STORY2",
+    "paragraphs": [...]
+  }
+]
 ```
 
 **Important Notes:**
-- The JSON can be either an object or an array with one object (app normalizes this)
+- **Multi-text support:** JSON is an array of text objects. Single-object files are automatically normalized to arrays.
+- Each text has `textTitle` and optional `textAbbreviation`
+- Users can switch between texts using the selector dropdown (desktop) or URL parameter
 - `baseline` is read-only vernacular language words from FLEx
 - `baselineChanges` tracks corrections without modifying original baseline array
+- `literalTranslation` is now an **array** (one-to-one with baseline), not a string
 - `literalTranslationMerges` handles multi-word glossing (e.g., compound words)
 - Translation languages use ISO codes (currently only "en" is supported)
 
@@ -236,17 +247,23 @@ Access `mobile.html?dev=true` to enable:
 
 ### Router Pattern
 
-Both `app.js` and `mobile.js` use hash-based routing:
+Hash-based routing with multi-text support:
 
 ```javascript
 // app.js router handles:
 // - / (root) → Auth page or Dashboard
-// - #p/SHARECODE → Translation interface
+// - #p/SHARECODE → Translation interface (defaults to text 0)
+// - #p/SHARECODE/text/0 → Translation interface for first text
+// - #p/SHARECODE/text/1 → Translation interface for second text
 
-// mobile.js uses state machine:
-// - setState(FLOW_STATES.CHUNK_SELECT)
-// - setState(FLOW_STATES.WORD_TRANSLATION)
+// currentTextIndex tracks which text in the array is active
+// getCurrentText() helper returns currentProject.json_data[currentTextIndex]
 ```
+
+**Text Selection UI:**
+- Desktop view shows a dropdown selector when multiple texts are present
+- Selecting a text updates the URL hash and re-renders the interface
+- All data operations use `getCurrentText()` to access the active text
 
 ### Debounced Save with Sync Queue
 
@@ -266,32 +283,41 @@ If server save fails, project ID is added to sync queue and retried every 30 sec
 
 ### Data Normalization
 
-The app normalizes two JSON formats:
+The app normalizes single-text and multi-text formats:
 
 ```javascript
-// Format 1: Direct object
+// Single text object → normalized to array with one element
 {"textTitle": "...", "paragraphs": [...]}
-
-// Format 2: Array wrapper (from some FLEx exports)
+// becomes:
 [{"textTitle": "...", "paragraphs": [...]}]
 
-// Code extracts first element if array detected
-if (Array.isArray(jsonData) && jsonData.length > 0) {
-  jsonData = jsonData[0];
+// Multi-text array → used as-is
+[
+  {"textTitle": "Story 1", "paragraphs": [...]},
+  {"textTitle": "Story 2", "paragraphs": [...]}
+]
+
+// Normalization in uploadProject():
+let textsArray = Array.isArray(jsonData) ? jsonData : [jsonData];
+
+// Normalization in loadTranslationPage():
+if (!Array.isArray(currentProject.json_data)) {
+  currentProject.json_data = [currentProject.json_data];
 }
 ```
 
 ### Progress Calculation
 
 ```javascript
-const allSegments = jsonData.paragraphs.flatMap(p => p.segments || []);
+const currentText = getCurrentText();
+const allSegments = currentText.paragraphs.flatMap(p => p.segments || []);
 const completedSegments = allSegments.filter(s =>
   s.freeTranslation?.en && s.freeTranslation.en.trim() !== ''
 ).length;
 const progress = (completedSegments / allSegments.length) * 100;
 ```
 
-A segment is "completed" when it has a non-empty free translation.
+A segment is "completed" when it has a non-empty free translation. Progress is calculated **per text**, not across all texts in a project.
 
 ## Known Issues & Gotchas
 
