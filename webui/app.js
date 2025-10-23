@@ -587,7 +587,7 @@ function renderMobileChunkSelect() {
           }).join('')}
         </div>
 
-        <button class="mobile-button mobile-button-secondary" style="margin-top: 16px;" onclick="openFullTextModal()">View Full Text</button>
+        <button class="mobile-button mobile-button-secondary" style="margin-top: 16px;" onclick="openFullTextModal()">${t('view_full_text')}</button>
       </div>
     </div>
   `;
@@ -674,7 +674,7 @@ function renderMobileFreeTranslation() {
           </button>
         </div>
 
-        <button class="mobile-button mobile-button-secondary" style="margin-top: 16px;" onclick="openFullTextModal()">View Full Text</button>
+        <button class="mobile-button mobile-button-secondary" style="margin-top: 16px;" onclick="openFullTextModal()">${t('view_full_text')}</button>
       </div>
     </div>
   `;
@@ -786,7 +786,7 @@ function renderMobileWordTranslation() {
 
           ${canLinkMore ? `
             <button class="mobile-link-button" onclick="linkWithNextWord()">
-              ${isLinked ? t('link_another_word') : t('link_with_next_word')} (${escapeHtml(words[lastLinkedIndex + 1])}) →
+              ${isLinked ? t('link_another_word') : t('link_with_next_word')} (${escapeHtml(words[lastLinkedIndex + 1])}) 🔗
             </button>
           ` : ''}
         </div>
@@ -806,7 +806,7 @@ function renderMobileWordTranslation() {
           </button>
         </div>
 
-        <button class="mobile-button mobile-button-secondary" style="margin-top: 16px;" onclick="openFullTextModal()">View Full Text</button>
+        <button class="mobile-button mobile-button-secondary" style="margin-top: 16px;" onclick="openFullTextModal()">${t('view_full_text')}</button>
       </div>
     </div>
   `;
@@ -947,7 +947,7 @@ function renderMobileChunkComplete() {
               ${t('yes')}
             </button>
           </div>
-          <button class="mobile-button mobile-button-secondary" style="margin-top: 16px;" onclick="openFullTextModal()">View Full Text</button>
+          <button class="mobile-button mobile-button-secondary" style="margin-top: 16px;" onclick="openFullTextModal()">${t('view_full_text')}</button>
         </div>
       ` : `
         <div class="mobile-card">
@@ -955,7 +955,7 @@ function renderMobileChunkComplete() {
           <button class="mobile-button mobile-button-success" onclick="backToChunkSelect()">
             ${t('finish')}
           </button>
-          <button class="mobile-button mobile-button-secondary" style="margin-top: 16px;" onclick="openFullTextModal()">View Full Text</button>
+          <button class="mobile-button mobile-button-secondary" style="margin-top: 16px;" onclick="openFullTextModal()">${t('view_full_text')}</button>
         </div>
       `}
     </div>
@@ -1110,7 +1110,7 @@ function renderDesktopView() {
           ${t('auto_sync')}
         </label>
         <button class="button-small" onclick="manualSync()">${t('sync_now')}</button>
-        <button class="button-small view-full-text-button" onclick="openFullTextModal()">View Full Text</button>
+        <button class="button-small view-full-text-button" onclick="openFullTextModal()">${t('view_full_text')}</button>
         <span class="save-indicator" id="save-indicator"></span>
       </div>
     </div>
@@ -1252,7 +1252,7 @@ function renderDesktopSegment(segment, index) {
                   onclick="mergeWFWCells(${index}, ${i})"
                   title="${t('merge_with_next')}"
                   ${i === words.length - 1 ? 'disabled' : ''}
-                >→</button>
+                >🔗</button>
                 <button
                   class="unmerge-button ${isMerged ? '' : 'hidden'}"
                   onclick="unmergeWFWCells(${index}, ${i})"

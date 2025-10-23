@@ -236,6 +236,55 @@ Currently only English (`en`) is supported. To add more languages:
 3. Modify save handlers to target correct language code
 4. Update i18n system in [i18n.js](i18n.js) for UI labels
 
+### Internationalization (i18n) - IMPORTANT
+
+**All user-facing text MUST be localized** using the `t()` function from [i18n.js](i18n.js).
+
+**NEVER hardcode English text in the UI.** Always add a translation key and use `${t('key_name')}` in template strings.
+
+**When adding new UI text:**
+
+1. **Add the key to [i18n.js](i18n.js)** in ALL language sections (currently `en` and `azj`):
+   ```javascript
+   en: {
+     // ... existing keys
+     your_new_key: 'Your English Text',
+   },
+   azj: {
+     // ... existing keys
+     your_new_key: 'Azərbaycanca tərcümə',
+   }
+   ```
+
+2. **Use the key in your code** with the `t()` function:
+   ```javascript
+   // In template strings:
+   `<button>${t('your_new_key')}</button>`
+
+   // In JavaScript:
+   const message = t('your_new_key');
+
+   // With placeholders:
+   `<p>${t('chunk_of', {current: 1, total: 10})}</p>`
+   ```
+
+3. **Common patterns to avoid:**
+   - ❌ `<button>Save</button>` - Hardcoded text
+   - ✅ `<button>${t('save')}</button>` - Localized
+   - ❌ `alert('Error loading')` - Hardcoded
+   - ✅ `alert(t('error_loading'))` - Localized
+
+4. **When reviewing code:**
+   - Search for hardcoded strings in template literals and UI code
+   - Ensure all user-facing text has a corresponding i18n key
+   - Check that new features include translations for all supported languages
+
+**Supported Languages:**
+- `en` - English (default)
+- `azj` - Azerbaijani
+
+The language selector appears in the top-right corner of the app. Users can switch languages at any time, and their preference is saved to localStorage.
+
 ### Mobile Dev Mode
 
 Access `mobile.html?dev=true` to enable:

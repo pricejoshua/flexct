@@ -120,6 +120,7 @@ const translations = {
     original: 'Original',
     reload: 'Reload',
     select_text: 'Select Text',
+    view_full_text: 'View Full Text',
   },
 
   azj: {
@@ -235,6 +236,7 @@ const translations = {
     original: 'Orijinal',
     reload: 'Yenidən Yüklə',
     select_text: 'Mətn seç',
+    view_full_text: 'Tam Mətni Göstər',
   },
 };
 
