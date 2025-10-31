@@ -1,0 +1,171 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "FLEx Interlinear Text Export",
+  "description": "Schema for exporting/importing FLEx interlinear texts with translations",
+  "type": "array",
+  "items": {
+    "$ref": "#/definitions/text"
+  },
+  "definitions": {
+    "text": {
+      "type": "object",
+      "required": ["textTitle", "paragraphs"],
+      "properties": {
+        "textTitle": {
+          "type": "string",
+          "description": "The title of the text (from Text.Name property)"
+        },
+        "textAbbreviation": {
+          "type": "string",
+          "description": "Optional abbreviation for the text"
+        },
+        "paragraphs": {
+          "type": "array",
+          "description": "Array of paragraphs in the text",
+          "items": {
+            "$ref": "#/definitions/paragraph"
+          }
+        }
+      }
+    },
+    "paragraph": {
+      "type": "object",
+      "required": ["segments"],
+      "properties": {
+        "segments": {
+          "type": "array",
+          "description": "Array of segments (sentences) in the paragraph",
+          "items": {
+            "$ref": "#/definitions/segment"
+          }
+        }
+      }
+    },
+    "segment": {
+      "type": "object",
+      "required": ["hvo", "baseline"],
+      "properties": {
+        "hvo": {
+          "type": "integer",
+          "description": "Unique identifier for the Segment object in FLEx"
+        },
+        "baseline": {
+          "type": "array",
+          "description": "The baseline text forms",
+          "items": {
+            "type": "string"
+          }
+        },
+        "baselineChanges": {
+          "type": "array",
+          "description": "Community member changes to baseline words (stored for linguist review)",
+          "items": {
+            "type": "object",
+            "properties": {
+              "wordIndex": {
+                "type": "integer",
+                "description": "Index of the word in the baseline array"
+              },
+              "originalValue": {
+                "type": "string",
+                "description": "Original baseline word"
+              },
+              "newValue": {
+                "type": "string",
+                "description": "Community member's suggested change"
+              },
+              "timestamp": {
+                "type": "string",
+                "format": "date-time",
+                "description": "When the change was made"
+              }
+            },
+            "required": ["wordIndex", "originalValue", "newValue"]
+          }
+        },
+        "freeTranslation": {
+          "type": "object",
+          "description": "Free translations in different writing systems (Segment.FreeTranslation - MultiString)",
+          "patternProperties": {
+            "^[a-z]{2,3}(-[A-Z][a-z]{3})?(-[A-Z]{2})?$": {
+              "type": "string",
+              "description": "Writing system code (e.g., 'en', 'fr', 'es') mapped to translation text"
+            }
+          },
+          "additionalProperties": false
+        },
+        "literalTranslation": {
+          "type": "object",
+          "description": "Literal (word-for-word) translations in different writing systems (Segment.LiteralTranslation - MultiString)",
+          "patternProperties": {
+            "^[a-z]{2,3}(-[A-Z][a-z]{3})?(-[A-Z]{2})?$": {
+              "type": "string",
+              "description": "Writing system code mapped to literal translation text"
+            }
+          },
+          "additionalProperties": false
+        },
+        "literalTranslationMerges": {
+          "type": "array",
+          "description": "Tracks which baseline words are merged into single WFW glosses",
+          "items": {
+            "type": "object",
+            "properties": {
+              "wordIndices": {
+                "type": "array",
+                "description": "Array of baseline word indices that are merged together",
+                "items": {
+                  "type": "integer"
+                },
+                "minItems": 2
+              },
+              "gloss": {
+                "type": "string",
+                "description": "The combined gloss for these merged words"
+              }
+            },
+            "required": ["wordIndices", "gloss"]
+          }
+        },
+        "notes": {
+          "type": "array",
+          "description": "Optional notes on the segment",
+          "items": {
+            "type": "object",
+            "properties": {
+              "content": {
+                "type": "string",
+                "description": "Note content"
+              }
+            }
+          }
+        },
+        "words": {
+          "type": "array",
+          "description": "Optional word-level analysis data",
+          "items": {
+            "$ref": "#/definitions/word"
+          }
+        }
+      }
+    },
+    "word": {
+      "type": "object",
+      "description": "Word-level analysis information",
+      "properties": {
+        "form": {
+          "type": "string",
+          "description": "The wordform text"
+        },
+        "gloss": {
+          "type": "string",
+          "description": "The gloss for this word"
+        },
+        "pos": {
+          "type": "string",
+          "description": "Part of speech"
+        }
+      }
+    }
+  }
+}
