@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS projects (
   linguist_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   share_code TEXT NOT NULL UNIQUE,
   title TEXT,
+  project_type TEXT DEFAULT 'interlinear' CHECK (project_type IN ('interlinear', 'verb_table')),
   json_data JSONB NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -18,6 +19,7 @@ CREATE TABLE IF NOT EXISTS projects (
 -- Create index on share_code for fast lookups
 CREATE INDEX idx_projects_share_code ON projects(share_code);
 CREATE INDEX idx_projects_linguist_id ON projects(linguist_id);
+CREATE INDEX idx_projects_type ON projects(project_type);
 
 -- Row Level Security Policies
 

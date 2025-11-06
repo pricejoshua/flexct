@@ -152,6 +152,27 @@ body.view-mobile #main-content {
   display: flex;
   gap: 10px;
   margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.filter-button {
+  padding: 8px 16px;
+  background: white;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.filter-button:hover {
+  background: var(--bg-light);
+}
+
+.filter-button.active {
+  background: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
 }
 
 /* ===== DESKTOP VIEW (Table-based) ===== */

@@ -227,6 +227,13 @@ async function loadDashboard() {
         <button onclick="uploadProject()" style="margin-top: 10px;">${t('upload')}</button>
         <div id="upload-message"></div>
       </div>
+
+      <div class="project-filter" style="display: flex; gap: 10px; margin: 20px 0; flex-wrap: wrap;">
+        <button class="filter-button active" onclick="filterProjects('all')">${t('all_projects')}</button>
+        <button class="filter-button" onclick="filterProjects('interlinear')">${t('interlinear_projects')}</button>
+        <button class="filter-button" onclick="filterProjects('verb_table')">${t('verb_table_projects')}</button>
+      </div>
+
       <div id="projects-list" class="projects-list">
         <p>${t('loading_projects')}</p>
       </div>
@@ -235,6 +242,9 @@ async function loadDashboard() {
 
   await loadProjects();
 }
+
+let allProjects = [];
+let currentFilter = 'all';
 
 async function loadProjects() {
   const listDiv = document.getElementById('projects-list');
@@ -248,26 +258,68 @@ async function loadProjects() {
 
     if (error) throw error;
 
-    if (projects.length === 0) {
-      listDiv.innerHTML = `<p>${t('no_projects_yet')}</p>`;
-      return;
-    }
+    allProjects = projects;
+    renderProjects();
 
-    listDiv.innerHTML = projects.map(project => `
+  } catch (error) {
+    listDiv.innerHTML = `<div class="error-message">${t('error_loading_projects', {error: error.message})}</div>`;
+  }
+}
+
+function renderProjects() {
+  const listDiv = document.getElementById('projects-list');
+
+  // Filter projects
+  let filtered = allProjects;
+  if (currentFilter !== 'all') {
+    filtered = allProjects.filter(p => (p.project_type || 'interlinear') === currentFilter);
+  }
+
+  if (filtered.length === 0) {
+    listDiv.innerHTML = `<p>${t('no_projects_yet')}</p>`;
+    return;
+  }
+
+  listDiv.innerHTML = filtered.map(project => {
+    const projectType = project.project_type || 'interlinear';
+    const typeBadge = projectType === 'verb_table' ? t('verb_table') : t('interlinear');
+    const badgeColor = projectType === 'verb_table' ? 'background: #fce7f3; color: #9f1239;' : 'background: #dbeafe; color: #1e40af;';
+
+    return `
       <div class="project-item">
-        <h3>${escapeHtml(project.title)}</h3>
+        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
+          <h3 style="margin: 0;">${escapeHtml(project.title)}</h3>
+          <span style="padding: 4px 12px; border-radius: 16px; font-size: 12px; font-weight: 500; ${badgeColor}">${typeBadge}</span>
+        </div>
         <p>${t('share_code')}: <strong>${project.share_code}</strong></p>
         <p>${t('created')}: ${new Date(project.created_at).toLocaleDateString()}</p>
         <div class="project-actions">
-          <button onclick="copyShareLink('${project.share_code}')">${t('copy_share_link')}</button>
+          <button onclick="openProject('${project.share_code}', '${projectType}')">${t('open')}</button>
+          <button onclick="copyShareLink('${project.share_code}', '${projectType}')">${t('copy_share_link')}</button>
           <button onclick="downloadProject('${project.id}')">${t('download_json')}</button>
           <button onclick="deleteProject('${project.id}')" class="button-secondary">${t('delete')}</button>
         </div>
       </div>
-    `).join('');
-  } catch (error) {
-    listDiv.innerHTML = `<div class="error-message">${t('error_loading_projects', {error: error.message})}</div>`;
+    `;
+  }).join('');
+}
+
+function filterProjects(filter, buttonElement) {
+  currentFilter = filter;
+
+  // Update button states
+  document.querySelectorAll('.filter-button').forEach(btn => {
+    btn.classList.remove('active');
+  });
+
+  // Use passed element or find by onclick attribute
+  if (buttonElement) {
+    buttonElement.classList.add('active');
+  } else if (window.event && window.event.target) {
+    window.event.target.classList.add('active');
   }
+
+  renderProjects();
 }
 
 async function uploadProject() {
@@ -284,16 +336,26 @@ async function uploadProject() {
     const text = await file.text();
     const jsonData = JSON.parse(text);
 
-    // Normalize to array format: single object becomes array with one element
-    let textsArray = Array.isArray(jsonData) ? jsonData : [jsonData];
+    // Detect project type
+    let projectType = 'interlinear';
+    let title;
+    let dataToStore = jsonData;
 
-    // Validate that we have at least one text
-    if (textsArray.length === 0) {
-      throw new Error('JSON file contains no texts');
+    if (jsonData.projectType === 'verb_table' || jsonData.tables) {
+      // Verb table project
+      projectType = 'verb_table';
+      title = jsonData.tables?.[0]?.tableTitle || file.name.replace('.json', '');
+    } else {
+      // Interlinear project - normalize to array format
+      dataToStore = Array.isArray(jsonData) ? jsonData : [jsonData];
+
+      if (dataToStore.length === 0) {
+        throw new Error('JSON file contains no texts');
+      }
+
+      title = dataToStore[0].textTitle || file.name.replace('.json', '');
     }
 
-    // Use first text's title for project title, or filename
-    const title = textsArray[0].textTitle || file.name.replace('.json', '');
     const shareCode = generateShareCode();
 
     const { error } = await supabase
@@ -302,7 +364,8 @@ async function uploadProject() {
         linguist_id: currentUser.id,
         title: title,
         share_code: shareCode,
-        json_data: textsArray
+        project_type: projectType,
+        json_data: dataToStore
       });
 
     if (error) throw error;
@@ -324,10 +387,29 @@ function generateShareCode() {
   return code;
 }
 
-function copyShareLink(shareCode) {
-  const url = `${window.location.origin}${window.location.pathname}#p/${shareCode}`;
-  navigator.clipboard.writeText(url);
-  alert(t('share_link_copied'));
+function openProject(shareCode, projectType) {
+  if (projectType === 'verb_table') {
+    window.location.href = `verb-table.html#vt/${shareCode}`;
+  } else {
+    window.location.hash = `#p/${shareCode}`;
+  }
+}
+
+function copyShareLink(shareCode, projectType) {
+  const baseUrl = `${window.location.origin}${window.location.pathname.replace('index.html', '')}`;
+  let url;
+
+  if (projectType === 'verb_table') {
+    url = `${baseUrl}verb-table.html#vt/${shareCode}`;
+  } else {
+    url = `${baseUrl}index.html#p/${shareCode}`;
+  }
+
+  navigator.clipboard.writeText(url).then(() => {
+    alert(t('share_link_copied'));
+  }).catch(err => {
+    console.error('Failed to copy:', err);
+  });
 }
 
 async function downloadProject(projectId) {

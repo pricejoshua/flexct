@@ -7,3 +7,6 @@ const SUPABASE_CONFIG = {
 
 // Initialize Supabase client
 const supabase = window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
+
+// Export for ES6 modules
+export { supabase, SUPABASE_CONFIG };

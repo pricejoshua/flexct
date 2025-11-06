@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Linguistic Data Dashboard</title>
+  <link rel="stylesheet" href="dashboard.css">
+</head>
+<body>
+  <header class="dashboard-header">
+    <div class="container">
+      <h1 id="app-title"></h1>
+      <div class="header-right">
+        <div id="language-selector"></div>
+        <div id="auth-status"></div>
+      </div>
+    </div>
+  </header>
+
+  <main id="main-content" class="container">
+    <div id="loading-screen" class="loading-screen">
+      <p id="loading-text"></p>
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script type="module" src="config.js"></script>
+  <script src="i18n.js"></script>
+  <script type="module" src="dashboard.js"></script>
+</body>
+</html>
