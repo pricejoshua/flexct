@@ -1,0 +1,142 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Verb Table Project",
+  "description": "Schema for verb inflection tables with configurable dimensions",
+  "type": "object",
+  "required": ["projectType", "version", "tables"],
+  "properties": {
+    "projectType": {
+      "type": "string",
+      "const": "verb_table",
+      "description": "Project type identifier"
+    },
+    "version": {
+      "type": "string",
+      "description": "Schema version",
+      "pattern": "^\\d+\\.\\d+$"
+    },
+    "tables": {
+      "type": "array",
+      "description": "Array of verb tables (allows multiple tables per project)",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/definitions/verbTable"
+      }
+    }
+  },
+  "definitions": {
+    "verbTable": {
+      "type": "object",
+      "required": ["tableTitle", "dimensions", "lexemes"],
+      "properties": {
+        "tableTitle": {
+          "type": "string",
+          "description": "Title of this verb table"
+        },
+        "tableAbbreviation": {
+          "type": "string",
+          "description": "Optional abbreviation for the table"
+        },
+        "dimensions": {
+          "type": "object",
+          "required": ["rows", "columns"],
+          "description": "Defines the two axes of the inflection table",
+          "properties": {
+            "rows": {
+              "$ref": "#/definitions/dimension"
+            },
+            "columns": {
+              "$ref": "#/definitions/dimension"
+            }
+          }
+        },
+        "lexemes": {
+          "type": "array",
+          "description": "List of lexemes (verbs) with their inflected forms",
+          "items": {
+            "$ref": "#/definitions/lexeme"
+          }
+        }
+      }
+    },
+    "dimension": {
+      "type": "object",
+      "required": ["label", "categories"],
+      "properties": {
+        "label": {
+          "type": "string",
+          "description": "Name of this dimension (e.g., 'Noun Classes', 'TAME Categories', 'Person', 'Tense')"
+        },
+        "categories": {
+          "type": "array",
+          "description": "List of categories for this dimension",
+          "items": {
+            "$ref": "#/definitions/category"
+          },
+          "minItems": 1
+        }
+      }
+    },
+    "category": {
+      "type": "object",
+      "required": ["id", "labels"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for this category (used as key in paradigm data)"
+        },
+        "labels": {
+          "type": "object",
+          "description": "Multilingual labels for this category",
+          "patternProperties": {
+            "^[a-z]{2,3}(-[A-Z][a-z]{3})?(-[A-Z]{2})?$": {
+              "type": "string",
+              "description": "Label in a specific language (e.g., 'en', 'ru', 'azj')"
+            }
+          },
+          "minProperties": 1,
+          "additionalProperties": false
+        },
+        "description": {
+          "type": "string",
+          "description": "Optional additional description or notes (e.g., 'çoc (brother)', 'Male human')"
+        }
+      }
+    },
+    "lexeme": {
+      "type": "object",
+      "required": ["id", "lemma", "paradigm"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for this lexeme",
+          "pattern": "^lex_\\d+$"
+        },
+        "lemma": {
+          "type": "string",
+          "description": "The base form or citation form of the lexeme"
+        },
+        "gloss": {
+          "type": "string",
+          "description": "Optional gloss/translation of the lemma"
+        },
+        "paradigm": {
+          "type": "object",
+          "description": "2D mapping of inflected forms using category IDs: paradigm[columnCategoryId][rowCategoryId] = inflectedForm",
+          "patternProperties": {
+            ".*": {
+              "type": "object",
+              "description": "Column category ID containing row category IDs",
+              "patternProperties": {
+                ".*": {
+                  "type": "string",
+                  "description": "Inflected form for this column+row combination"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
