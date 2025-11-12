@@ -32,6 +32,19 @@ async function init() {
 // ===== ROUTER =====
 
 async function router() {
+  const hash = window.location.hash;
+
+  // Check if hash contains project routes - redirect to appropriate interface
+  if (hash.startsWith('#p/')) {
+    // Interlinear translation project
+    window.location.href = `interlinear.html${hash}`;
+    return;
+  } else if (hash.startsWith('#vt/')) {
+    // Verb table project
+    window.location.href = `verb-table.html${hash}`;
+    return;
+  }
+
   currentUser = await getCurrentUser();
 
   updateAuthStatus();
@@ -126,13 +139,13 @@ async function loadDashboard() {
       </div>
 
       <div class="project-filter">
-        <button class="filter-button active" onclick="filterProjects('all')">
+        <button class="filter-button active" onclick="filterProjects('all', this)">
           ${t('all_projects')}
         </button>
-        <button class="filter-button" onclick="filterProjects('interlinear')">
+        <button class="filter-button" onclick="filterProjects('interlinear', this)">
           ${t('interlinear_projects')}
         </button>
-        <button class="filter-button" onclick="filterProjects('verb_table')">
+        <button class="filter-button" onclick="filterProjects('verb_table', this)">
           ${t('verb_table_projects')}
         </button>
       </div>
@@ -183,9 +196,6 @@ function renderProjects() {
   listDiv.innerHTML = filtered.map(project => {
     const projectType = project.project_type || 'interlinear';
     const typeBadge = projectType === 'verb_table' ? t('verb_table') : t('interlinear');
-    const shareHash = projectType === 'verb_table'
-      ? buildVerbTableHash(project.share_code)
-      : buildInterlinearHash(project.share_code);
 
     return `
       <div class="project-item">
@@ -206,14 +216,16 @@ function renderProjects() {
   }).join('');
 }
 
-function filterProjects(filter) {
+function filterProjects(filter, buttonElement) {
   currentFilter = filter;
 
   // Update button states
   document.querySelectorAll('.filter-button').forEach(btn => {
     btn.classList.remove('active');
   });
-  event.target.classList.add('active');
+  if (buttonElement) {
+    buttonElement.classList.add('active');
+  }
 
   renderProjects();
 }
@@ -288,14 +300,14 @@ function openProject(shareCode, projectType) {
     : buildInterlinearHash(shareCode);
 
   // Open in new window
-  const baseUrl = window.location.origin + window.location.pathname.replace('dashboard.html', '');
-  const targetFile = projectType === 'verb_table' ? 'verb-table.html' : 'index.html';
+  const baseUrl = window.location.origin + window.location.pathname.replace('dashboard.html', '').replace('index.html', '');
+  const targetFile = projectType === 'verb_table' ? 'verb-table.html' : 'interlinear.html';
   window.open(`${baseUrl}${targetFile}${hash}`, '_blank');
 }
 
 function copyShareLink(shareCode, projectType) {
-  const baseUrl = window.location.origin + window.location.pathname.replace('dashboard.html', '');
-  const targetFile = projectType === 'verb_table' ? 'verb-table.html' : 'index.html';
+  const baseUrl = window.location.origin + window.location.pathname.replace('dashboard.html', '').replace('index.html', '');
+  const targetFile = projectType === 'verb_table' ? 'verb-table.html' : 'interlinear.html';
   const hash = projectType === 'verb_table'
     ? buildVerbTableHash(shareCode)
     : buildInterlinearHash(shareCode);

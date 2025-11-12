@@ -1,6 +1,10 @@
 // Unified FLEX Translation App - Responsive Desktop + Mobile Views
 // Automatically switches between table view (desktop) and flow view (mobile)
 
+// ===== IMPORTS =====
+// Get supabase client from global scope (set by config.js module)
+const supabase = window.supabaseClient;
+
 // ===== CONFIGURATION =====
 
 // View modes

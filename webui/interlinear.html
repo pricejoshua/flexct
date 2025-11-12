@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>FLEX Interlinear Translation</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+    <header>
+      <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+        <div id="language-selector-container"></div>
+        <div id="auth-status"></div>
+      </div>
+    </header>
+
+    <main id="main-content">
+      <!-- Content will be dynamically loaded here -->
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script type="module" src="config.js"></script>
+  <script src="i18n.js"></script>
+  <script>
+    // Initialize language selector
+    function initLanguageSelector() {
+      const container = document.getElementById('language-selector-container');
+      if (container && typeof createLanguageSelector === 'function') {
+        container.innerHTML = createLanguageSelector();
+      }
+    }
+
+    // Update page title and header on language change
+    function updateUILanguage() {
+    }
+
+    window.addEventListener('load', () => {
+      initLanguageSelector();
+      updateUILanguage();
+    });
+
+    // Listen for language changes
+    window.addEventListener('languageChanged', () => {
+      updateUILanguage();
+      // Re-render current page if needed
+      if (typeof router === 'function') {
+        router();
+      }
+    });
+  </script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
