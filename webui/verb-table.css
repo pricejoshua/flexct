@@ -198,12 +198,15 @@ body {
   border-radius: 0.5rem;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   overflow-x: auto;
+  max-width: 100%;
 }
 
 .paradigm-table {
-  width: 100%;
+  width: auto;
+  min-width: 100%;
   border-collapse: collapse;
   font-size: 0.875rem;
+  table-layout: auto;
 }
 
 .paradigm-table th {
@@ -212,14 +215,14 @@ body {
   text-align: left;
   font-weight: 600;
   border: 1px solid #e2e8f0;
-  position: sticky;
-  top: 0;
-  z-index: 10;
+  white-space: nowrap;
+  min-width: 150px;
 }
 
 .paradigm-table td {
   padding: 0.5rem;
   border: 1px solid #e2e8f0;
+  min-width: 150px;
 }
 
 .paradigm-table th:first-child {
@@ -227,6 +230,9 @@ body {
   left: 0;
   z-index: 20;
   background: #f1f5f9;
+  min-width: 200px;
+  max-width: 250px;
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.05);
 }
 
 .paradigm-table td:first-child {
@@ -234,18 +240,23 @@ body {
   left: 0;
   background: white;
   font-weight: 500;
-  z-index: 5;
+  z-index: 15;
+  min-width: 200px;
+  max-width: 250px;
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.05);
 }
 
 /* Form Inputs in Table */
 .paradigm-table input[type="text"] {
   width: 100%;
+  min-width: 0;
   padding: 0.5rem;
   border: 1px solid transparent;
   border-radius: 0.25rem;
   font-size: 0.875rem;
   background: transparent;
   transition: all 0.2s;
+  box-sizing: border-box;
 }
 
 .paradigm-table input[type="text"]:focus {

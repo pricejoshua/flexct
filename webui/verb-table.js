@@ -281,7 +281,7 @@ function renderParadigmTable() {
         </div>
       </div>
 
-      <div style="overflow-x: auto;">
+      <div style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
         <table class="paradigm-table">
           <thead>
             <tr>
