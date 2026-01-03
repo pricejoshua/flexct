@@ -87,6 +87,7 @@ class Config:
     # Text Selection Options
     TEXT_SELECTION_MARKED = "Only texts marked with 'y' in Description"
     TEXT_SELECTION_ALL = "All texts in project"
+    TEXT_SELECTION_DIALOG = "Choose texts using hierarchical dialog"
 
     def __init__(self):
         self.export_mode = self.EXPORT_MODE_SINGLE
@@ -94,6 +95,8 @@ class Config:
         self.output_directory = "."
         self.filename_prefix = "exported_text"
         self.include_empty_segments = False
+        self.organize_hierarchically = True
+        self.exclude_scripture = True
 
 # Global configuration instance
 config = Config()
@@ -123,7 +126,17 @@ def configurables():
         ("text_selection", "Text Selection",
          config.text_selection,
          FTM_List,
-         [Config.TEXT_SELECTION_ALL, Config.TEXT_SELECTION_MARKED]),
+         [Config.TEXT_SELECTION_ALL, Config.TEXT_SELECTION_MARKED, Config.TEXT_SELECTION_DIALOG]),
+
+        # Hierarchical Organization - Checkbox (only for dialog mode)
+        ("organize_hierarchically", "Organize texts by description prefix in dialog",
+         config.organize_hierarchically,
+         FTM_Boolean),
+
+        # Scripture Filtering - Checkbox
+        ("exclude_scripture", "Exclude scripture texts",
+         config.exclude_scripture,
+         FTM_Boolean),
 
         # Output Directory - Text input
         ("output_directory", "Output Directory",
@@ -151,6 +164,8 @@ def UpdateConfig(configDict):
     """
     config.export_mode = configDict.get("export_mode", config.export_mode)
     config.text_selection = configDict.get("text_selection", config.text_selection)
+    config.organize_hierarchically = configDict.get("organize_hierarchically", config.organize_hierarchically)
+    config.exclude_scripture = configDict.get("exclude_scripture", config.exclude_scripture)
     config.output_directory = configDict.get("output_directory", config.output_directory)
     config.filename_prefix = configDict.get("filename_prefix", config.filename_prefix)
     config.include_empty_segments = configDict.get("include_empty_segments", config.include_empty_segments)
@@ -191,30 +206,90 @@ def MainFunction(project, report, modifyAllowed):
     skipped_count = 0
     total_count = 0
 
-    use_marker = (config.text_selection == Config.TEXT_SELECTION_MARKED)
+    # Determine which texts to process
+    texts_to_process = []
 
-    for text in text_repo.AllInstances():
-        total_count += 1
+    if config.text_selection == Config.TEXT_SELECTION_DIALOG:
+        # Use hierarchical dialog for text selection
+        report.Info("Opening text selection dialog...")
 
+        try:
+            # Create tkinter parent window
+            root = tk.Tk()
+            root.withdraw()
+
+            # Create dialog
+            dialog = TextFilterDialog(root, "Select Texts to Export")
+            dialog.set_label("Select texts to export (check boxes to include):")
+
+            # Set up organizer if hierarchical mode is enabled
+            organizer = None
+            if config.organize_hierarchically:
+                organizer = create_organizer_by_description_prefix(cache)
+
+            # Load texts into dialog
+            dialog.load_texts_from_flex(
+                cache,
+                text_repo=text_repo,
+                organize_by=organizer,
+                exclude_scripture=config.exclude_scripture
+            )
+
+            # Show dialog and get selected texts
+            selected_texts = dialog.show()
+
+            # Clean up tkinter
+            root.destroy()
+
+            if not selected_texts:
+                report.Warning("No texts selected. Export cancelled.")
+                return
+
+            texts_to_process = selected_texts
+            report.Info(f"User selected {len(texts_to_process)} text(s)")
+
+        except Exception as e:
+            report.Error(f"Failed to show text selection dialog: {e}")
+            import traceback
+            report.Error(traceback.format_exc())
+            return
+
+    else:
+        # Use original marker-based or all-texts selection
+        use_marker = (config.text_selection == Config.TEXT_SELECTION_MARKED)
+
+        for text in text_repo.AllInstances():
+            total_count += 1
+
+            # Get title
+            title = text.Name.BestVernacularAnalysisAlternative
+            if not title or not hasattr(title, 'Text') or not title.Text:
+                skipped_count += 1
+                continue
+
+            # Check if we should process this text
+            if use_marker:
+                description = text.Description.get_String(wsa)
+                is_marked = (description is not None and
+                            hasattr(description, "Text") and
+                            description.Text is not None and
+                            description.Text.lower() == 'y')
+
+                if not is_marked:
+                    skipped_count += 1
+                    continue
+
+            texts_to_process.append(text)
+
+        report.Info(f"Found {total_count} text(s), will process {len(texts_to_process)}")
+
+    # Process selected texts
+    for text in texts_to_process:
         # Get title
         title = text.Name.BestVernacularAnalysisAlternative
         if not title or not hasattr(title, 'Text') or not title.Text:
             skipped_count += 1
             continue
-
-        title_text = title.Text
-
-        # Check if we should process this text
-        if use_marker:
-            description = text.Description.get_String(wsa)
-            is_marked = (description is not None and
-                        hasattr(description, "Text") and
-                        description.Text is not None and
-                        description.Text.lower() == 'y')
-
-            if not is_marked:
-                skipped_count += 1
-                continue
 
         # Get paragraphs
         paragraphs = []
@@ -235,13 +310,10 @@ def MainFunction(project, report, modifyAllowed):
             skipped_count += 1
 
     # Summary
-    report.Info(f"Found {total_count} text(s), exporting {exported_count}")
+    report.Info(f"Exporting {exported_count} text(s)")
 
     if not text_para_dict:
-        if use_marker:
-            report.Warning("No texts marked for export. Set Description to 'y' in FLEx.")
-        else:
-            report.Warning("No valid texts found to export.")
+        report.Warning("No valid texts found to export.")
         return
 
     # Export to JSON
@@ -421,4 +493,5 @@ def create_json(base_path, title_para_dict, cache, wsv, single_text=True, includ
 
 FlexToolsModule = FlexToolsModuleClass(runFunction = MainFunction,
                                        docs = docs,
+                                       configuration = configurables(),
                                        )

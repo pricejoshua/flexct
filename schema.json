@@ -96,11 +96,14 @@
         },
         "literalTranslation": {
           "type": "object",
-          "description": "Literal (word-for-word) translations in different writing systems (Segment.LiteralTranslation - MultiString)",
+          "description": "Literal (word-for-word) translations in different writing systems. Each language contains an array that is one-to-one with the baseline array. For merged cells (see literalTranslationMerges), the merged gloss is repeated at each corresponding position.",
           "patternProperties": {
             "^[a-z]{2,3}(-[A-Z][a-z]{3})?(-[A-Z]{2})?$": {
-              "type": "string",
-              "description": "Writing system code mapped to literal translation text"
+              "type": "array",
+              "description": "Array of word-for-word translations, one-to-one with baseline array. For merged cells, the gloss value is repeated at each merged position.",
+              "items": {
+                "type": "string"
+              }
             }
           },
           "additionalProperties": false
