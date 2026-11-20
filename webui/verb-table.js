@@ -238,6 +238,21 @@ function renderLexemeList() {
   `;
 }
 
+// Fallback translations for column labels missing from the table data
+const COLUMN_LABEL_FALLBACKS = {
+  azj: {
+    'interrogative perfective': 'bitmiş növ sual forması',
+    'interrogative imperfective': 'bitməmiş növ sual forması'
+  }
+};
+
+function getColumnLabel(col, lang) {
+  if (col.labels[lang]) return col.labels[lang];
+  const en = col.labels.en || '';
+  const fb = COLUMN_LABEL_FALLBACKS[lang]?.[en.trim().toLowerCase()];
+  return fb || en || col.id;
+}
+
 function renderParadigmTable() {
   const table = getCurrentTable();
   const lexemes = table.lexemes || [];
@@ -287,7 +302,7 @@ function renderParadigmTable() {
             <tr>
               <th>${escapeHtml(rows.label)}</th>
               ${cols.categories.map(col => `
-                <th>${escapeHtml(col.labels[currentLang] || col.labels.en || col.id)}</th>
+                <th>${escapeHtml(getColumnLabel(col, currentLang))}</th>
               `).join('')}
             </tr>
           </thead>
@@ -509,7 +524,7 @@ function exportCSV() {
   // Header row
   csv += `"${rows.label}"`;
   cols.categories.forEach(col => {
-    csv += `,"${col.labels[currentLang] || col.labels.en || col.id}"`;
+    csv += `,"${getColumnLabel(col, currentLang)}"`;
   });
   csv += '\n';
 
